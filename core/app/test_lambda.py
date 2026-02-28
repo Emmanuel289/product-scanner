@@ -1,11 +1,11 @@
-from app import handler
+from handler import handler
 
 test_event = {
     "Records": [
         {
             "s3": {
-                "bucket": {"name": "product-scanner-uploads-a8f4302a"},
-                "object": {"key": "image1.png"}
+                "bucket": {"name": "product-scanner-uploads-fb45fe8f"},
+                "object": {"key": "image2.png"}
             }
         }
     ]

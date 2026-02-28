@@ -4,6 +4,7 @@ import boto3
 from random import sample
 from typing import List, Dict, Set
 from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS
+from decision_engine import recommend  # deterministic rule engine
 
 s3_client = boto3.client("s3")
 textract_client = boto3.client("textract")
@@ -43,19 +44,14 @@ def build_products(raw_products: List[Dict[str, str]], aliases: Dict[str, str], 
             "texture": item.get("texture", ""),
             "finish": item.get("finish", ""),
             "coverage": item.get("coverage"),
-
-            # --- Decision Intelligence --- #
+            # Decision intelligence fields
             "best_for": item.get("best_for", []),
             "avoid_for": item.get("avoid_for", []),
             "concerns_targeted": item.get("concerns_targeted", []),
             "concerns_not_ideal": item.get("concerns_not_ideal", []),
             "comedogenic_risk": item.get("comedogenic_risk", "low"),
             "sensitivity_risk": item.get("sensitivity_risk", "low"),
-
-            #
             "skin_types": item.get("skin_types", []),
-            "texture": item.get("texture", ""),
-            "finish": item.get("finish", ""),
             "ingredient_intent": item.get("ingredient_intent", ""),
             "pros": item.get("pros", []),
             "cons": item.get("cons", [])
@@ -72,42 +68,28 @@ def match_product(text: str, products_by_brand: Dict[str, List[Dict]], stop_word
     for _, items in products_by_brand.items():
         for product in items:
             product_tokens = set(product["search_tokens"])
-            number_of_matching_tokens = len(product_tokens & text_tokens)
-            score = number_of_matching_tokens / len(product_tokens)
-            print(
-                f"(Product Name -> {product['name']}, Matching length -> {number_of_matching_tokens}, Score -> {score})")
+            score = len(product_tokens & text_tokens) / \
+                max(len(product_tokens), 1)
             if score > best_score:
                 best_score = score
                 best_match = product
     if best_score >= CONFIDENCE_THRESHOLD:
-        print(f"(Best match -> {best_match}, Best Score -> {best_score})")
         return best_match
     return None
 
 
 # ----- Build products ----- #
-"""
-PRODUCTS_BY_BRAND = {
-    Dior: [
-        {
-            "product_id: <val>
-            "brand": <val>,
-            "name": <val>,
-            "search_tokens: [...]
-        }
-}
-
-"""
 PRODUCTS_BY_BRAND = build_products(RAW_PRODUCTS, BRAND_ALIASES, STOPWORDS)
 
 
-# ----- Lambda Handler ----- #
+# ----- Lambda Handler with deterministic decision engine ----- #
 def handler(event, context):
     for record in event.get("Records", []):
         bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
 
         try:
+            # --- Detect text via Textract --- #
             response = textract_client.detect_document_text(
                 Document={"S3Object": {"Bucket": bucket, "Name": key}}
             )
@@ -115,10 +97,10 @@ def handler(event, context):
                 item["Text"] for item in response.get("Blocks", [])
                 if item["BlockType"] == "LINE"
             ]
-            text_from_image = " ".join(lines).lower()
+            text_from_image = " ".join(lines)
             print("Detected text:", text_from_image)
 
-            # --- Product Matching --- #
+            # --- Match product --- #
             matched_product = match_product(
                 text_from_image, PRODUCTS_BY_BRAND, STOPWORDS)
             if not matched_product:
@@ -127,17 +109,13 @@ def handler(event, context):
                     "message": "We couldn't confidently identify this product."
                 })}
 
-            matched_brand = matched_product["brand"]
-
-            # --- Outcome --- #
-            if "oily" in matched_product["skin_types"] and "dry" in matched_product["skin_types"]:
-                outcome = "⚠️ Mixed match"
-            else:
-                outcome = "✅ Good match"
+            # --- Run deterministic decision engine --- #
+            decision_summary = recommend(matched_product)
 
             # --- Alternatives --- #
             alternatives_pool = [
-                p for p in PRODUCTS_BY_BRAND[matched_brand] if p["name"] != matched_product["name"]
+                p for p in PRODUCTS_BY_BRAND[matched_product["brand"]]
+                if p["name"] != matched_product["name"]
             ]
             alternatives = sample(
                 alternatives_pool, min(2, len(alternatives_pool)))
@@ -149,17 +127,10 @@ def handler(event, context):
             ]
 
             result = {
-                "status": outcome,
-                "brand": matched_brand,
+                "status": decision_summary["outcome"],
+                "brand": matched_product["brand"],
                 "product_name": matched_product["name"],
-                "product_summary": {
-                    "skin_types": matched_product["skin_types"],
-                    "finish": matched_product["finish"],
-                    "texture": matched_product["texture"],
-                    "ingredient_intent": matched_product["ingredient_intent"],
-                    "pros": matched_product["pros"],
-                    "cons": matched_product["cons"]
-                },
+                "product_summary": decision_summary,
                 "alternatives": alt_results
             }
             return {

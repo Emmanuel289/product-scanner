@@ -29,7 +29,7 @@ resource "null_resource" "build_and_push_image" {
 
   triggers = {
     dockerfile_hash = filemd5("${path.module}/../core/Dockerfile")
-    source_hash     = filemd5("${path.module}/../core/app.py")
+    # source_hash     = filemd5("${path.module}/../core/app")
   }
 
   provisioner "local-exec" {
