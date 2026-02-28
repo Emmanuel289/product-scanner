@@ -4,7 +4,7 @@ test_event = {
     "Records": [
         {
             "s3": {
-                "bucket": {"name": "product-scanner-uploads-ada0307c"},
+                "bucket": {"name": "product-scanner-uploads-a8f4302a"},
                 "object": {"key": "image1.png"}
             }
         }

@@ -24,7 +24,7 @@ resource "aws_ecr_repository" "lambda_repo" {
   }
 }
 
-# --- Build & Push Docker Image --- #
+# --- Build and push the lambda image --- #
 resource "null_resource" "build_and_push_image" {
 
   triggers = {
@@ -33,22 +33,13 @@ resource "null_resource" "build_and_push_image" {
   }
 
   provisioner "local-exec" {
-    command = <<EOT
-aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${aws_ecr_repository.lambda_repo.repository_url}
-docker build -t ${aws_ecr_repository.lambda_repo.repository_url}:latest -f ${path.module}/../core/Dockerfile --platform linux/amd64 --provenance false --no-cache ${path.module}/../core
-docker push ${aws_ecr_repository.lambda_repo.repository_url}:latest
-  EOT
+    command = "aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${aws_ecr_repository.lambda_repo.repository_url} && docker build -t ${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag} --platform linux/amd64 --provenance false --no-cache ${path.module}/../core && docker push ${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag}"
+
   }
 
   depends_on = [aws_ecr_repository.lambda_repo]
 }
 
-data "aws_ecr_image" "lambda_image" {
-  repository_name = aws_ecr_repository.lambda_repo.name
-  image_tag       = "latest"
-
-  depends_on = [null_resource.build_and_push_image]
-}
 # --- IAM Assume Role Policy --- #
 data "aws_iam_policy_document" "lambda_assume_policy" {
   statement {
@@ -98,7 +89,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
 resource "aws_lambda_function" "textract_lambda" {
   function_name = "product-scanner-textract-lambda"
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}@${data.aws_ecr_image.lambda_image.image_digest}"
+  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag}"
   role          = aws_iam_role.lambda_role.arn
   timeout       = 30
   memory_size   = 1024
