@@ -1,6 +1,11 @@
+import logging
 from enum import Enum
 from pydantic import BaseModel
 from typing import List, Optional
+
+app_logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO,
+                    format="%(levelname)s - %(message)s - %(asctime)s")
 
 # ---- Values that wouldn't change (much) ---- #
 STOPWORDS = {
