@@ -90,12 +90,12 @@ def cors_headers():
     }
 
 
-def build_result(matched_product, user_profile):
+def build_result(matched_product: Dict[str, str], user_profile, products_by_brand: Dict[str, List[Dict]]):
     """Shared logic: run decision engine + build alternatives + return result dict."""
     decision_summary = recommend(matched_product, user_profile)
 
     alternatives_pool = [
-        p for p in PRODUCTS_BY_BRAND[matched_product["brand"]]
+        p for p in products_by_brand.get(matched_product["brand"], [])
         if p["name"] != matched_product["name"]
     ]
     alternatives = sample(alternatives_pool, min(2, len(alternatives_pool)))
@@ -115,7 +115,7 @@ def build_result(matched_product, user_profile):
     }
 
 
-def run_textract_and_match(bucket: str, key: str) -> Dict:
+def run_textract_and_match(bucket: str, key: str, products_by_brand: Dict[str, List[Dict]], stop_words: Set[str]) -> Dict:
     """Run Textract on an S3 object and return the matched product or None."""
     response = textract_client.detect_document_text(
         Document={"S3Object": {"Bucket": bucket, "Name": key}}
@@ -126,7 +126,7 @@ def run_textract_and_match(bucket: str, key: str) -> Dict:
     ]
     text_from_image = " ".join(lines)
     print("Detected text:", text_from_image)
-    return match_product(text_from_image, PRODUCTS_BY_BRAND, STOPWORDS)
+    return match_product(text_from_image, products_by_brand, stop_words)
 
 
 def parse_user_profile(user_profile_data: dict):
@@ -175,7 +175,8 @@ def handler(event, context):
                                  Key=key, Body=image_bytes)
 
             # --- Textract + match --- #
-            matched_product = run_textract_and_match(SCANNER_BUCKET, key)
+            matched_product = run_textract_and_match(
+                SCANNER_BUCKET, key, PRODUCTS_BY_BRAND, STOPWORDS)
             if not matched_product:
                 return {
                     "statusCode": 200,
@@ -188,8 +189,8 @@ def handler(event, context):
 
             # --- Decision engine --- #
             user_profile = parse_user_profile(user_profile_data)
-            result = build_result(matched_product, user_profile)
-
+            result = build_result(
+                matched_product, user_profile, PRODUCTS_BY_BRAND)
             return {
                 "statusCode": 200,
                 "headers": cors_headers(),
@@ -213,7 +214,8 @@ def handler(event, context):
         user_profile_data = record.get("user_profile")
 
         try:
-            matched_product = run_textract_and_match(bucket, key)
+            matched_product = run_textract_and_match(
+                bucket, key, PRODUCTS_BY_BRAND, STOPWORDS)
             if not matched_product:
                 return {
                     "statusCode": 200,
@@ -224,7 +226,8 @@ def handler(event, context):
                 }
 
             user_profile = parse_user_profile(user_profile_data)
-            result = build_result(matched_product, user_profile)
+            result = build_result(
+                matched_product, user_profile, PRODUCTS_BY_BRAND)
 
             return {"statusCode": 200, "body": json.dumps(result)}
 
