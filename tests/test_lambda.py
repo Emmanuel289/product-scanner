@@ -1,3 +1,4 @@
+# tests/test_lambda.py
 import json
 import pytest
 import base64
@@ -5,53 +6,78 @@ from unittest.mock import patch, MagicMock
 from handler import handler
 
 
+# ── Helpers ────────────────────────────────────────────────────────────────────
 FAKE_IMAGE = base64.b64encode(b"fake-image-bytes").decode()
-OPTIONS_EVENT = {"httpMethod": "OPTIONS", "body": None}
 
 
-def generate_s3_event(key, user_profile=None):
-    return {
-        "Records": [{
-            "s3": {
-                "bucket": {"name": "product-scanner-maximus"},
-                "object": {"key": key},
-            },
-            **({"user_profile": user_profile} if user_profile else {}),
-        }]
-    }
-
-
-def generate_http_event(body):
-    return {
-        "httpMethod": "POST",
-        "body": json.dumps(body),
-    }
-
-
-# A minimal product that satisfies build_result() and recommend()
-MOCK_MATCHED_PRODUCT = {
-    "product_id":        "charlotte-tilbury-flawless-finish-foundation",
-    "brand":             "Charlotte Tilbury",
-    "name":              "Flawless Finish Foundation",
-    "search_tokens":     ["charlotte", "tilbury", "flawless", "finish", "foundation"],
-    "category":          "foundation",
-    "texture":           "liquid",
-    "finish":            "matte",
-    "coverage":          "medium",
-    "best_for":          ["oily skin", "combination skin"],
-    "avoid_for":         ["dry skin"],
-    "concerns_targeted": ["acne", "oil control"],
-    "concerns_not_ideal": ["dryness"],
-    "comedogenic_risk":  "low",
-    "sensitivity_risk":  "low",
-    "skin_types":        ["oily", "combination"],
-    "ingredient_intent": "Niacinamide (helps reduce pores and control oil) + SPF 15 (protects skin from UV damage)",
-    "pros":              ["Long lasting", "Buildable coverage"],
-    "cons":              ["Not ideal for dry skin"],
+def S3_EVENT(key, user_profile=None): return {
+    "Records": [{
+        "s3": {
+            "bucket": {"name": "product-scanner-maximus"},
+            "object": {"key": key},
+        },
+        **({"user_profile": user_profile} if user_profile else {}),
+    }]
 }
 
 
-# ----- Test HTTP branch ----- #
+def HTTP_EVENT(body): return {
+    "httpMethod": "POST",
+    "body": json.dumps(body),
+}
+
+
+OPTIONS_EVENT = {"httpMethod": "OPTIONS", "body": None}
+
+MOCK_MATCHED_PRODUCT = {
+    "product_id":         "charlotte-tilbury-flawless-finish-foundation",
+    "brand":              "Charlotte Tilbury",
+    "name":               "Flawless Finish Foundation",
+    "search_tokens":      ["charlotte", "tilbury", "flawless", "finish", "foundation"],
+    "category":           "foundation",
+    "texture":            "liquid",
+    "finish":             "matte",
+    "coverage":           "medium",
+    "best_for":           ["oily skin", "combination skin"],
+    "avoid_for":          ["dry skin"],
+    "concerns_targeted":  ["acne", "oil control"],
+    "concerns_not_ideal": ["dryness"],
+    "comedogenic_risk":   "low",
+    "sensitivity_risk":   "low",
+    "skin_types":         ["oily", "combination"],
+    "ingredient_intent":  "Niacinamide (reduces pores and controls oil) + SPF 15 (protects from UV damage)",
+    "pros":               ["Long lasting", "Buildable coverage"],
+    "cons":               ["Not ideal for dry skin"],
+}
+
+MOCK_ALTERNATIVE = {
+    "product_id":         "charlotte-tilbury-light-wonder-foundation",
+    "brand":              "Charlotte Tilbury",
+    "name":               "Light Wonder Foundation",
+    "search_tokens":      ["charlotte", "tilbury", "light", "wonder", "foundation"],
+    "category":           "foundation",
+    "texture":            "lightweight",
+    "finish":             "natural",
+    "coverage":           "light",
+    "best_for":           ["all skin types"],
+    "avoid_for":          [],
+    "concerns_targeted":  ["dullness", "uneven skin tone"],
+    "concerns_not_ideal": [],
+    "comedogenic_risk":   "low",
+    "sensitivity_risk":   "low",
+    "skin_types":         ["dry", "normal", "sensitive"],
+    "ingredient_intent":  "Hyaluronic Acid (draws moisture into skin) + Vitamin C (brightens and evens tone)",
+    "pros":               ["Lightweight feel", "Natural finish"],
+    "cons":               ["Low coverage"],
+}
+
+# PRODUCTS_BY_BRAND with both matched product and a real alternative
+MOCK_PRODUCTS_BY_BRAND = {
+    "Charlotte Tilbury": [MOCK_MATCHED_PRODUCT, MOCK_ALTERNATIVE]
+}
+
+
+# ── HTTP branch ────────────────────────────────────────────────────────────────
 def test_cors_preflight_returns_200():
     response = handler(OPTIONS_EVENT, None)
     assert response["statusCode"] == 200
@@ -59,29 +85,29 @@ def test_cors_preflight_returns_200():
 
 
 def test_missing_image_base64_returns_400():
-    response = handler(generate_http_event({}), None)
+    response = handler(HTTP_EVENT({}), None)
     assert response["statusCode"] == 400
     body = json.loads(response["body"])
     assert "error" in body
 
 
-def test_http_product_not_found_when_no_match(mock_textract_no_match):
-    response = handler(generate_http_event({"image_base64": FAKE_IMAGE}), None)
+def test_http_product_not_found_when_no_match(mock_no_match):
+    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert "Not Found" in body["status"]
 
 
-def test_http_response_has_expected_shape(mock_textract_match):
-    response = handler(generate_http_event({"image_base64": FAKE_IMAGE}), None)
+def test_http_response_has_expected_shape(mock_match):
+    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     for key in ["status", "brand", "product_name", "product_summary", "alternatives"]:
         assert key in body, f"Missing key: {key}"
 
 
-def test_http_fit_score_is_none_without_user_profile(mock_textract_match):
-    response = handler(generate_http_event({"image_base64": FAKE_IMAGE}), None)
+def test_http_fit_score_is_none_without_user_profile(mock_match):
+    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -89,8 +115,8 @@ def test_http_fit_score_is_none_without_user_profile(mock_textract_match):
     assert summary["fit_score"] is None
 
 
-def test_http_returns_fit_score_when_user_profile_provided(mock_textract_match):
-    response = handler(generate_http_event({
+def test_http_returns_fit_score_when_user_profile_provided(mock_match):
+    response = handler(HTTP_EVENT({
         "image_base64": FAKE_IMAGE,
         "user_profile": {"skin_type": "oily", "concerns": [], "sensitive": False},
     }), None)
@@ -101,17 +127,34 @@ def test_http_returns_fit_score_when_user_profile_provided(mock_textract_match):
     assert isinstance(summary["fit_score"], int)
 
 
-# ----- Test S3 branch ----- #
+def test_alternatives_are_returned(mock_match):
+    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    body = json.loads(response["body"])
+    assert len(body["alternatives"]) > 0
 
-def test_s3_event_product_not_found(mock_textract_no_match):
-    response = handler(generate_s3_event("scans/unknown.jpg"), None)
+
+def test_alternatives_have_meaningful_explanations(mock_match):
+    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    body = json.loads(response["body"])
+    for alt in body["alternatives"]:
+        assert "name" in alt
+        assert "why_different" in alt
+        assert len(alt["why_different"]
+                   ) > 20, f"Explanation too short: '{alt['why_different']}'"
+        # Should not be the old generic template
+        assert "Different texture () or finish ()" not in alt["why_different"]
+
+
+# ── S3 branch ──────────────────────────────────────────────────────────────────
+def test_s3_event_product_not_found(mock_no_match):
+    response = handler(S3_EVENT("scans/unknown.jpg"), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert "Not Found" in body["status"]
 
 
-def test_s3_event_without_user_profile(mock_textract_match):
-    response = handler(generate_s3_event("scans/test-image.jpg"), None)
+def test_s3_event_without_user_profile(mock_match):
+    response = handler(S3_EVENT("scans/test-image.jpg"), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -119,10 +162,9 @@ def test_s3_event_without_user_profile(mock_textract_match):
     assert summary["fit_score"] is None
 
 
-def test_s3_event_with_user_profile(mock_textract_match):
+def test_s3_event_with_user_profile(mock_match):
     user_profile = {"skin_type": "oily", "concerns": [], "sensitive": False}
-    response = handler(generate_s3_event(
-        "scans/test-image.jpg", user_profile), None)
+    response = handler(S3_EVENT("scans/test-image.jpg", user_profile), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -130,18 +172,26 @@ def test_s3_event_with_user_profile(mock_textract_match):
     assert isinstance(summary["fit_score"], int)
 
 
-# ----- Fixtures for mocking calls to the product db, S3 bucket, and Textract ----- #
+# ── Fixtures ───────────────────────────────────────────────────────────────────
+
 @pytest.fixture
-def mock_textract_match():
+def mock_match():
+    """
+    Patches match_product to return MOCK_MATCHED_PRODUCT and
+    PRODUCTS_BY_BRAND to include a real alternative so build_result()
+    can produce a non-empty alternatives list.
+    """
     with patch("handler.s3_client") as mock_s3, \
             patch("handler.textract_client"), \
-            patch("handler.match_product", return_value=MOCK_MATCHED_PRODUCT):
+            patch("handler.match_product", return_value=MOCK_MATCHED_PRODUCT), \
+            patch("handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND):
         mock_s3.put_object.return_value = {}
         yield
 
 
 @pytest.fixture
-def mock_textract_no_match():
+def mock_no_match():
+    """Forces match_product to return None — simulates unrecognised product."""
     with patch("handler.s3_client") as mock_s3, \
             patch("handler.textract_client"), \
             patch("handler.match_product", return_value=None):

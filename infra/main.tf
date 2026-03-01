@@ -1,12 +1,6 @@
 
 data "aws_caller_identity" "current" {}
 
-# --- Random id resource for assigning unique bucket names --- #
-resource "random_id" "suffix" {
-  byte_length = 4
-}
-
-
 # --- S3 Bucket for uploads --- #
 resource "aws_s3_bucket" "uploads" {
   bucket        = "product-scanner-maximus"
@@ -29,7 +23,7 @@ resource "null_resource" "build_and_push_image" {
 
   triggers = {
     dockerfile_hash = filemd5("${path.module}/../core/Dockerfile")
-    # source_hash     = filemd5("${path.module}/../core/app")
+    source_hash     = filemd5("${path.module}/../core/app/handler.py")
   }
 
   provisioner "local-exec" {
@@ -122,6 +116,7 @@ resource "aws_s3_bucket_notification" "trigger" {
   lambda_function {
     lambda_function_arn = aws_lambda_function.scanner.arn
     events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "incoming/"
   }
 
   depends_on = [aws_lambda_permission.allow_s3]

@@ -6,8 +6,8 @@ import uuid
 import boto3
 from random import sample
 from typing import List, Dict, Set
-from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS, UserProfile
-from decision_engine import recommend  # deterministic rule engine
+from constants import app_logger, CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS, UserProfile
+from decision_engine import recommend
 
 SCANNER_BUCKET = os.environ.get("SCANNER_BUCKET", "product-scanner-maximus")
 s3_client = boto3.client("s3")
@@ -78,6 +78,7 @@ def match_product(text: str, products_by_brand: Dict[str, List[Dict]], stop_word
                 best_score = score
                 best_match = product
     if best_score >= CONFIDENCE_THRESHOLD:
+        app_logger.info(f"Best score: {best_score}\nBest match: {best_match}")
         return best_match
     return None
 
@@ -88,6 +89,44 @@ def cors_headers():
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Methods": "POST,OPTIONS"
     }
+
+
+def explain_alternative(matched: Dict, alternative: Dict) -> str:
+    parts = []
+
+    # --- Shared goal or different goal --- #
+    matched_intent = matched.get("ingredient_intent", "")
+    alt_intent = alternative.get("ingredient_intent", "")
+    matched_concerns = set(matched.get("concerns_targeted", []))
+    alt_concerns = set(alternative.get("concerns_targeted", []))
+    shared_concerns = matched_concerns & alt_concerns
+
+    if shared_concerns:
+        parts.append(f"Same {','.join(shared_concerns)} goal")
+    elif alt_intent:
+        parts.append(f"Focuses on {alt_intent} instead")
+
+    # --- Texture difference --- #
+    matched_texture = matched.get("texture", "")
+    alt_texture = alternative.get("texture", "")
+    if alt_texture and alt_texture != matched_texture:
+        parts.append(f"but {alt_texture} texture")
+
+    # --- Skin type difference --- #
+    matched_skin = set(matched.get("skin_types", []))
+    alt_skin = set(alternative.get("skin_types", []))
+    unique_to_alt = alt_skin - matched_skin
+    if unique_to_alt:
+        parts.append(f"better suited for {', '.join(unique_to_alt)} skin")
+
+    # --- Fallback if nothing meaningful to compare --- #
+    if not parts:
+        alt_finish = alternative.get("finish", "")
+        if alt_finish:
+            parts.append(f"{alt_finish} finish")
+        parts.append("different formulation approach")
+
+    return " - ".join(parts) if parts else "Alternative formulation"
 
 
 def build_result(matched_product: Dict[str, str], user_profile, products_by_brand: Dict[str, List[Dict]]):
@@ -102,7 +141,7 @@ def build_result(matched_product: Dict[str, str], user_profile, products_by_bran
     alt_results = [
         {
             "name": alt["name"],
-            "why_different": f"Different texture ({alt['texture']}) or finish ({alt['finish']})"
+            "why_different": explain_alternative(matched_product, alt)
         } for alt in alternatives
     ]
 
@@ -125,7 +164,7 @@ def run_textract_and_match(bucket: str, key: str, products_by_brand: Dict[str, L
         if item["BlockType"] == "LINE"
     ]
     text_from_image = " ".join(lines)
-    print("Detected text:", text_from_image)
+    app_logger.info("Detected text:", text_from_image)
     return match_product(text_from_image, products_by_brand, stop_words)
 
 
@@ -170,7 +209,7 @@ def handler(event, context):
 
             # --- Upload image to S3 so Textract can read it --- #
             image_bytes = base64.b64decode(image_b64)
-            key = f"scans/{uuid.uuid4()}.jpg"
+            key = f"incoming/{uuid.uuid4()}.jpg"
             s3_client.put_object(Bucket=SCANNER_BUCKET,
                                  Key=key, Body=image_bytes)
 
@@ -198,7 +237,7 @@ def handler(event, context):
             }
 
         except Exception as e:
-            print("Error in HTTP branch:", str(e))
+            app_logger.error(f"Error in HTTP branch: {str(e)}")
             return {
                 "statusCode": 500,
                 "headers": cors_headers(),
