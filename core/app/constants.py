@@ -1,4 +1,6 @@
 from enum import Enum
+from pydantic import BaseModel
+from typing import List, Optional
 
 # ---- Values that wouldn't change (much) ---- #
 STOPWORDS = {
@@ -77,12 +79,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.GLOW.value,
         "coverage": CoverageType.MEDIUM.value,
-        "best_for": ["normal", "dry"],
-        "avoid_for": ["oily"],
+        "best_for": [SkinType.NORMAL.value, SkinType.DRY.value],
+        "avoid_for": [SkinType.OILY.value],
         "concerns_targeted": ["hydration", "radiance"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -92,12 +94,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.MATTE.value,
         "coverage": CoverageType.MEDIUM.value,
-        "best_for": ["oily", "combination"],
-        "avoid_for": ["dry"],
+        "best_for": [SkinType.OILY.value, SkinType.COMBINATION.value],
+        "avoid_for": [SkinType.DRY.value],
         "concerns_targeted": ["oil control", "long wear"],
         "concerns_not_ideal": ["hydration"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -106,12 +108,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.BALM.value,
         "finish": FinishType.GLOW.value,
-        "best_for": ["dry", "normal"],
+        "best_for": [SkinType.DRY.value, SkinType.NORMAL.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration", "sheer tint"],
         "concerns_not_ideal": ["full coverage color"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -120,12 +122,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.CREAM.value,
         "finish": FinishType.NATURAL.value,
-        "best_for": ["normal"],
+        "best_for": [SkinType.NORMAL.value],
         "avoid_for": ["very dry"],
         "concerns_targeted": ["pigment", "long wear"],
         "concerns_not_ideal": ["hydration boost"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -135,12 +137,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.NATURAL.value,
         "coverage": CoverageType.LIGHT.value,
-        "best_for": ["normal", "combination"],
+        "best_for": [SkinType.NORMAL.value, SkinType.COMBINATION.value],
         "avoid_for": [],
         "concerns_targeted": ["lightweight wear"],
         "concerns_not_ideal": ["full coverage"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -148,12 +150,12 @@ RAW_PRODUCTS = [
         "name": "Dior Capture Totale Super Potent Serum",
         "category": Category.SERUM.value,
         "texture": TextureType.LIQUID.value,
-        "best_for": ["dry", "normal"],
+        "best_for": [SkinType.DRY.value, SkinType.NORMAL.value],
         "avoid_for": [],
         "concerns_targeted": ["anti-aging", "firming"],
         "concerns_not_ideal": ["acne treatment"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -162,12 +164,12 @@ RAW_PRODUCTS = [
         "category": Category.MOISTURIZER.value,
         "texture": TextureType.CREAM.value,
         "finish": FinishType.NATURAL.value,
-        "best_for": ["dry", "normal"],
+        "best_for": [SkinType.DRY.value, SkinType.NORMAL.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "medium",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.MEDIUM.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -177,12 +179,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.CREAM.value,
         "finish": FinishType.NATURAL.value,
         "coverage": CoverageType.FULL.value,
-        "best_for": ["normal", "combination"],
+        "best_for": [SkinType.NORMAL.value, SkinType.COMBINATION.value],
         "avoid_for": ["very dry"],
         "concerns_targeted": ["coverage", "brightening"],
         "concerns_not_ideal": ["hydration boost"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     # =========================
@@ -196,12 +198,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.NATURAL.value,
         "coverage": CoverageType.MEDIUM.value,
-        "best_for": ["normal", "combination"],
+        "best_for": [SkinType.NORMAL.value, SkinType.COMBINATION.value],
         "avoid_for": [],
         "concerns_targeted": ["lightweight wear"],
         "concerns_not_ideal": ["full glam coverage"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -211,12 +213,12 @@ RAW_PRODUCTS = [
         "texture": TextureType.LOTION.value,
         "finish": FinishType.GLOW.value,
         "coverage": CoverageType.SHEER.value,
-        "best_for": ["dry", "normal"],
+        "best_for": [SkinType.DRY.value, SkinType.NORMAL.value],
         "avoid_for": ["very oily"],
         "concerns_targeted": ["hydration", "light coverage"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -225,12 +227,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.MATTE.value,
-        "best_for": ["normal", "combination"],
+        "best_for": [SkinType.NORMAL.value, SkinType.COMBINATION.value],
         "avoid_for": [],
         "concerns_targeted": ["pigment"],
         "concerns_not_ideal": ["hydration"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -239,12 +241,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.LIQUID.value,
         "finish": FinishType.GLOW.value,
-        "best_for": ["dry"],
+        "best_for": [SkinType.DRY.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration", "sheer tint"],
         "concerns_not_ideal": ["matte finish"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -253,12 +255,12 @@ RAW_PRODUCTS = [
         "category": Category.FOUNDATION.value,
         "texture": TextureType.GEL.value,
         "finish": FinishType.NATURAL.value,
-        "best_for": ["oily", "combination"],
+        "best_for": [SkinType.OILY.value, SkinType.COMBINATION.value],
         "avoid_for": ["very dry"],
         "concerns_targeted": ["pore blurring", "oil control"],
         "concerns_not_ideal": ["hydration boost"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -267,12 +269,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.BALM.value,
         "finish": FinishType.GLOW.value,
-        "best_for": ["dry"],
+        "best_for": [SkinType.DRY.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration"],
         "concerns_not_ideal": ["matte finish"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -280,12 +282,12 @@ RAW_PRODUCTS = [
         "name": "Find Comfort Hydrating Body Lotion",
         "category": Category.MOISTURIZER.value,
         "texture": TextureType.LOTION.value,
-        "best_for": ["dry"],
+        "best_for": [SkinType.DRY.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "medium",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.MEDIUM.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -294,12 +296,12 @@ RAW_PRODUCTS = [
         "category": Category.LIP_PRODUCT.value,
         "texture": TextureType.CREAM.value,
         "finish": FinishType.MATTE.value,
-        "best_for": ["normal"],
+        "best_for": [SkinType.NORMAL.value],
         "avoid_for": ["very dry"],
         "concerns_targeted": ["pigment"],
         "concerns_not_ideal": ["hydration"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     # =========================
@@ -311,12 +313,12 @@ RAW_PRODUCTS = [
         "name": "Toleriane Hydrating Gentle Cleanser",
         "category": Category.CLEANSER.value,
         "texture": TextureType.CREAM.value,
-        "best_for": ["dry", "sensitive"],
+        "best_for": [SkinType.DRY.value, SkinType.SENSITIVE.value],
         "avoid_for": ["very oily"],
         "concerns_targeted": ["barrier repair", "gentle cleansing"],
         "concerns_not_ideal": ["oil stripping"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -324,12 +326,12 @@ RAW_PRODUCTS = [
         "name": "Toleriane Double Repair Face Moisturizer",
         "category": Category.MOISTURIZER.value,
         "texture": TextureType.CREAM.value,
-        "best_for": ["dry", "sensitive"],
+        "best_for": [SkinType.DRY.value, SkinType.SENSITIVE.value],
         "avoid_for": [],
         "concerns_targeted": ["barrier repair", "hydration"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "medium",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.MEDIUM.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -337,12 +339,12 @@ RAW_PRODUCTS = [
         "name": "Effaclar Purifying Foaming Gel Cleanser",
         "category": Category.CLEANSER.value,
         "texture": TextureType.FOAM.value,
-        "best_for": ["oily", "acne-prone"],
-        "avoid_for": ["dry", "sensitive"],
+        "best_for": [SkinType.OILY.value, SkinType.ACNE_PRONE.value],
+        "avoid_for": [SkinType.DRY.value, SkinType.SENSITIVE.value],
         "concerns_targeted": ["oil control", "acne"],
         "concerns_not_ideal": ["hydration"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -351,12 +353,12 @@ RAW_PRODUCTS = [
         "category": Category.MOISTURIZER.value,
         "texture": TextureType.GEL.value,
         "finish": FinishType.MATTE.value,
-        "best_for": ["oily", "acne-prone"],
-        "avoid_for": ["dry"],
+        "best_for": [SkinType.OILY.value, SkinType.ACNE_PRONE.value],
+        "avoid_for": [SkinType.DRY.value],
         "concerns_targeted": ["oil control"],
         "concerns_not_ideal": ["deep hydration"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -364,12 +366,12 @@ RAW_PRODUCTS = [
         "name": "Effaclar A.I. Targeted Breakout Corrector",
         "category": Category.SERUM.value,
         "texture": TextureType.GEL.value,
-        "best_for": ["acne-prone"],
+        "best_for": [SkinType.ACNE_PRONE.value],
         "avoid_for": ["very sensitive"],
         "concerns_targeted": ["acne"],
         "concerns_not_ideal": ["anti-aging"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "medium",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
 
     {
@@ -377,12 +379,12 @@ RAW_PRODUCTS = [
         "name": "Hyalu B5 Pure Hyaluronic Acid Serum",
         "category": Category.SERUM.value,
         "texture": TextureType.GEL.value,
-        "best_for": ["dry", "normal"],
+        "best_for": [SkinType.DRY.value, SkinType.NORMAL.value],
         "avoid_for": [],
         "concerns_targeted": ["hydration", "plumping"],
         "concerns_not_ideal": ["oil control"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -390,12 +392,12 @@ RAW_PRODUCTS = [
         "name": "Cicaplast Baume B5",
         "category": Category.MOISTURIZER.value,
         "texture": TextureType.BALM.value,
-        "best_for": ["dry", "sensitive"],
+        "best_for": [SkinType.DRY.value, SkinType.SENSITIVE.value],
         "avoid_for": ["very oily"],
         "concerns_targeted": ["barrier repair", "soothing"],
         "concerns_not_ideal": ["lightweight wear"],
-        "comedogenic_risk": "medium",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.MEDIUM.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 
     {
@@ -404,11 +406,19 @@ RAW_PRODUCTS = [
         "category": Category.SUNSCREEN.value,
         "texture": TextureType.LOTION.value,
         "finish": FinishType.NATURAL.value,
-        "best_for": ["normal", "dry", "sensitive"],
+        "best_for": [SkinType.NORMAL.value, SkinType.DRY.value, SkinType.SENSITIVE.value],
         "avoid_for": [],
         "concerns_targeted": ["sun protection"],
         "concerns_not_ideal": ["matte finish"],
-        "comedogenic_risk": "low",
-        "sensitivity_risk": "low",
+        "comedogenic_risk": RiskLevel.LOW.value,
+        "sensitivity_risk": RiskLevel.LOW.value,
     },
 ]
+
+# ---- Model to store the profile of a user ---- #
+
+
+class UserProfile(BaseModel):
+    skin_type: Optional[SkinType]
+    concerns: Optional[List]
+    sensitive: bool = False

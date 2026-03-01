@@ -3,7 +3,7 @@ import re
 import boto3
 from random import sample
 from typing import List, Dict, Set
-from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS
+from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS, UserProfile
 from decision_engine import recommend  # deterministic rule engine
 
 s3_client = boto3.client("s3")
@@ -88,6 +88,16 @@ def handler(event, context):
         bucket = record["s3"]["bucket"]["name"]
         key = record["s3"]["object"]["key"]
 
+        # --- Extract the user's profile if it exists --- #
+        user_profile_data = record.get("user_profile")
+        user_profile = None
+        if user_profile_data:
+            user_profile = UserProfile(
+                skin_type=user_profile_data.get("skin_type", ""),
+                concerns=user_profile_data.get("concerns", []),
+                sensitive=user_profile_data.get("sensitive", False)
+            )
+
         try:
             # --- Detect text via Textract --- #
             response = textract_client.detect_document_text(
@@ -109,8 +119,8 @@ def handler(event, context):
                     "message": "We couldn't confidently identify this product."
                 })}
 
-            # --- Run deterministic decision engine --- #
-            decision_summary = recommend(matched_product)
+            # --- Run deterministic decision engine with an optional user profile --- #
+            decision_summary = recommend(matched_product, user_profile)
 
             # --- Alternatives --- #
             alternatives_pool = [
