@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const API_ENDPOINT = "https://vnf9ydkp22.execute-api.us-east-1.amazonaws.com/prod/scan";
@@ -23,6 +23,13 @@ const ScanIcon = () => (
 const UploadIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+  </svg>
+);
+
+const CameraIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+    <circle cx="12" cy="13" r="4" />
   </svg>
 );
 
@@ -102,13 +109,53 @@ function PillTag({ text, variant = "default" }) {
 
 // ─── SCAN STEP ────────────────────────────────────────────────────────────────
 function ScanStep({ onResult, onLoading }) {
-  const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState(null);
-  const [file, setFile] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef();
+  const cameraFileRef = useRef();   // fallback for mobile native camera
+  const videoRef = useRef();
+  const streamRef = useRef();
 
+  // ── Start live camera stream ──
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      setCameraActive(true);
+      // Attach stream to video element after state update renders it
+      setTimeout(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      }, 50);
+    } catch (err) {
+      // Fallback: open native camera file picker (works on iOS/Android)
+      cameraFileRef.current?.click();
+    }
+  };
+
+  // ── Stop stream ──
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  };
+
+  // ── Capture still from live video ──
+  const captureFrame = () => {
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    setPreview(canvas.toDataURL("image/jpeg", 0.92));
+    stopCamera();
+  };
+
+  // ── Handle file from upload or camera fallback ──
   const handleFile = (f) => {
-    setFile(f);
+    if (!f || !f.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target.result);
     reader.readAsDataURL(f);
@@ -116,12 +163,16 @@ function ScanStep({ onResult, onLoading }) {
 
   const handleDrop = (e) => {
     e.preventDefault(); setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith("image/")) handleFile(f);
+    handleFile(e.dataTransfer.files[0]);
   };
 
+  // ── Stop camera on unmount ──
+  useEffect(() => () => stopCamera(), []);
+
+  const retake = () => { setPreview(null); stopCamera(); };
+
   const handleAnalyze = async () => {
-    if (!file) return;
+    if (!preview) return;
     onLoading(true);
     try {
       const base64 = preview.split(",")[1];
@@ -131,7 +182,6 @@ function ScanStep({ onResult, onLoading }) {
         body: JSON.stringify({ image_base64: base64 }),
       });
       const data = await res.json();
-
       onResult(data);
     } catch (err) {
       onResult({ error: true, message: err.message });
@@ -140,58 +190,158 @@ function ScanStep({ onResult, onLoading }) {
     }
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        onClick={() => fileRef.current?.click()}
-        style={{
-          border: `2px dashed ${dragging ? "#c084fc" : preview ? "#6366f1" : "#2a2a2a"}`,
-          borderRadius: 16, padding: preview ? 0 : "48px 24px",
-          textAlign: "center", cursor: "pointer", overflow: "hidden",
-          background: dragging ? "rgba(192,132,252,0.05)" : "#0d0d0d",
-          transition: "all 0.2s ease",
-          minHeight: preview ? 240 : "auto",
-          position: "relative",
-        }}
+  // ── Live camera view ──
+  if (cameraActive) return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#000", aspectRatio: "4/3" }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        {/* Viewfinder overlay */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{
+            width: "72%", aspectRatio: "3/2",
+            border: "2px solid rgba(99,102,241,0.8)",
+            borderRadius: 12,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
+            position: "relative",
+          }}>
+            {/* Corner accents */}
+            {[
+              { top: -2, left: -2, borderTop: "3px solid #6366f1", borderLeft: "3px solid #6366f1", borderRadius: "4px 0 0 0" },
+              { top: -2, right: -2, borderTop: "3px solid #6366f1", borderRight: "3px solid #6366f1", borderRadius: "0 4px 0 0" },
+              { bottom: -2, left: -2, borderBottom: "3px solid #6366f1", borderLeft: "3px solid #6366f1", borderRadius: "0 0 0 4px" },
+              { bottom: -2, right: -2, borderBottom: "3px solid #6366f1", borderRight: "3px solid #6366f1", borderRadius: "0 0 4px 0" },
+            ].map((style, i) => (
+              <div key={i} style={{ position: "absolute", width: 20, height: 20, ...style }} />
+            ))}
+          </div>
+        </div>
+        <div style={{ position: "absolute", bottom: 12, left: 0, right: 0, textAlign: "center" }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>
+            Point at product label
+          </span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <button onClick={retake} style={{
+          background: "#141414", border: "1px solid #2a2a2a", borderRadius: 12,
+          padding: "14px", color: "#888", cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+        }}>Cancel</button>
+        <button onClick={captureFrame} style={{
+          background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+          border: "none", borderRadius: 12, padding: "14px",
+          color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif",
+          boxShadow: "0 0 20px rgba(99,102,241,0.4)",
+        }}>Capture</button>
+      </div>
+    </div>
+  );
+
+  // ── Preview + analyze ──
+  if (preview) return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ position: "relative", borderRadius: 16, overflow: "hidden" }}>
+        <img src={preview} alt="Product" style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)",
+          display: "flex", alignItems: "flex-end", padding: 16,
+        }}>
+          <button onClick={retake} style={{
+            background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 8, padding: "6px 14px", color: "#ccc", cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif", fontSize: 13, backdropFilter: "blur(8px)",
+          }}>Retake</button>
+        </div>
+      </div>
+      <button onClick={handleAnalyze} style={{
+        background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+        border: "none", borderRadius: 12, padding: "16px 24px",
+        color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer",
+        fontFamily: "'DM Sans', sans-serif", letterSpacing: 0.5,
+        boxShadow: "0 0 24px rgba(99,102,241,0.4)",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      }}
+        onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 0 32px rgba(99,102,241,0.6)"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 0 24px rgba(99,102,241,0.4)"; }}
       >
-        {preview ? (
-          <>
-            <img src={preview} alt="Product" style={{ width: "100%", maxHeight: 300, objectFit: "cover", display: "block" }} />
-            <div style={{
-              position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)",
-              display: "flex", alignItems: "flex-end", padding: 16
-            }}>
-              <span style={{ color: "#aaa", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>Tap to change image</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ color: "#444", marginBottom: 12 }}><ScanIcon /></div>
-            <div style={{ color: "#fff", fontFamily: "'DM Serif Display', serif", fontSize: 20, marginBottom: 8 }}>Drop product image here</div>
-            <div style={{ color: "#555", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>or tap to upload from your device</div>
-          </>
-        )}
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => e.target.files[0] && handleFile(e.target.files[0])} />
+        Analyze Product →
+      </button>
+    </div>
+  );
+
+  // ── Default: two equal entry buttons + drag zone ──
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+        {/* Take Photo */}
+        <button onClick={startCamera} style={{
+          background: "#0d0d0d", border: "1px solid #2a2a2a",
+          borderRadius: 14, padding: "28px 16px",
+          cursor: "pointer", display: "flex", flexDirection: "column",
+          alignItems: "center", gap: 10, transition: "border-color 0.15s ease",
+        }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#6366f1"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#2a2a2a"}
+        >
+          <div style={{ color: "#6366f1" }}><CameraIcon /></div>
+          <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Take Photo</span>
+          <span style={{ color: "#555", fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>Use your camera</span>
+        </button>
+
+        {/* Upload */}
+        <div
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          style={{
+            background: dragging ? "rgba(99,102,241,0.06)" : "#0d0d0d",
+            border: `1px solid ${dragging ? "#6366f1" : "#2a2a2a"}`,
+            borderRadius: 14, padding: "28px 16px",
+            cursor: "pointer", display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 10, transition: "border-color 0.15s ease",
+          }}
+          onMouseEnter={e => { if (!dragging) e.currentTarget.style.borderColor = "#6366f1"; }}
+          onMouseLeave={e => { if (!dragging) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+        >
+          <div style={{ color: "#6366f1" }}><UploadIcon /></div>
+          <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Upload</span>
+          <span style={{ color: "#555", fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>Gallery or file</span>
+        </div>
       </div>
 
-      {preview && (
-        <button onClick={handleAnalyze} style={{
-          background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-          border: "none", borderRadius: 12, padding: "16px 24px",
-          color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif", letterSpacing: 0.5,
-          boxShadow: "0 0 24px rgba(99,102,241,0.4)",
-          transition: "transform 0.15s ease, box-shadow 0.15s ease",
-        }}
-          onMouseEnter={e => { e.target.style.transform = "scale(1.02)"; e.target.style.boxShadow = "0 0 32px rgba(99,102,241,0.6)"; }}
-          onMouseLeave={e => { e.target.style.transform = "scale(1)"; e.target.style.boxShadow = "0 0 24px rgba(99,102,241,0.4)"; }}
-        >
-          Analyze Product →
-        </button>
-      )}
+      <div style={{ textAlign: "center", color: "#333", fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>
+        or drag & drop onto Upload
+      </div>
+
+      {/* Hidden inputs */}
+      {/* Upload (no capture — opens file picker / gallery) */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={e => handleFile(e.target.files[0])}
+      />
+      {/* Camera fallback for mobile devices that block getUserMedia */}
+      <input
+        ref={cameraFileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={e => handleFile(e.target.files[0])}
+      />
     </div>
   );
 }
