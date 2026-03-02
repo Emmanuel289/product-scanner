@@ -25,7 +25,7 @@ The app currently covers 24 products across 3 brands:
 - **Rare Beauty** — foundations, tinted moisturisers, lip products, primers
 - **La Roche-Posay** — cleansers, moisturisers, serums, sunscreen
 
-The full list of the supported products can be found [here](https://docs.google.com/spreadsheets/d/1nCdNNC2St6VZhPKAihXhKjWCIZtfRBiIKh0OJhJ_-v0/edit?gid=0#gid=0)
+The full list of supported products can be found [here](https://docs.google.com/spreadsheets/d/1nCdNNC2St6VZhPKAihXhKjWCIZtfRBiIKh0OJhJ_-v0/edit?gid=0#gid=0)
 
 ---
 
@@ -60,7 +60,7 @@ Click **Can't scan? Search by name**, type at least 3 characters, and results ap
 ---
 
 ### 4 - Product Not Found
-If the product isn't in the database, the app returns a information indicating that the product could not be detected, similar to the one below:
+If the product isn't in the database, the app returns information indicating that the product could not be detected, similar to the screenshot below:
 
 ![Not found](./assets/scanner_10.png)
 
@@ -72,7 +72,8 @@ The top-left back and forward arrows let you navigate between the scan screen an
 
 ---
 ## Testing 
-The app is deployed on Vercel at this [url](https://maximus-product-scanner.vercel.app/). Do try out some of the workflows!
+The app is deployed on Vercel at this [product-scanner-app](https://maximus-product-scanner.vercel.app/). Do try out some of the workflows!
+
 ## Local Development
 
 ### Prerequisites
