@@ -62,7 +62,7 @@ Click **Can't scan? Search by name**, type at least 3 characters, and results ap
 ### 4 - Product Not Found
 If the product isn't in the database, the app returns a information indicating that the product could not be detected, similar to the one below:
 
-![Not found](./assets/scanner_11.png)
+![Not found](./assets/scanner_10.png)
 
 ## Navigation
 
