@@ -1,4 +1,3 @@
-# scripts/enrich_products.py
 """
 Offline enrichment script — uses Claude to generate ingredient_intent, pros,
 and cons for each product in DynamoDB following PRD §14 tone guidelines.
@@ -70,7 +69,7 @@ def enrich_product(product: dict) -> dict:
         messages=[{"role": "user", "content": build_prompt(product)}]
     )
 
-    raw = message.content[0].text.strip().lower()
+    raw = message.content[0].text.strip()
 
     # Strip markdown fences if present
     if raw.startswith("```"):
