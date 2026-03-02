@@ -84,11 +84,39 @@ def test_cors_preflight_returns_200():
     assert response["headers"]["Access-Control-Allow-Origin"] == "*"
 
 
-def test_missing_image_base64_returns_400():
+def test_missing_image_base64_product_name_query_returns_400():
     response = handler(http_event({}), None)
     assert response["statusCode"] == 400
     body = json.loads(response["body"])
     assert "error" in body
+
+
+def test_http_name_search_returns_result_when_matched():
+    """Name search finds a product and returns full result shape."""
+    with patch("handler.match_product", return_value=MOCK_MATCHED_PRODUCT), \
+            patch("handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND), \
+            patch("handler.load_products_from_dynamodb", return_value=[]):
+        response = handler(http_event(
+            {"product_name": "Flawless Finish Foundation"}), None)
+        assert response["statusCode"] == 200
+        print(f"response is {response}")
+        body = json.loads(response["body"])
+        assert body["brand"] == "Charlotte Tilbury"
+        assert body["product_name"] == "Flawless Finish Foundation"
+        assert "product_summary" in body
+        assert "alternatives" in body
+
+
+def test_http_name_search_returns_not_found_when_no_match():
+    """Name search with unknown product returns Not Found — no guessing."""
+    with patch("handler.match_product", return_value=None), \
+            patch("handler.load_products_from_dynamodb", return_value=[]):
+        response = handler(http_event(
+            {"product_name": "Unknown Product XYZ"}), None)
+        assert response["statusCode"] == 200
+        body = json.loads(response["body"])
+        assert "Not Found" in body["status"]
+        assert "message" in body
 
 
 def test_http_product_not_found_when_no_match(mock_no_match):

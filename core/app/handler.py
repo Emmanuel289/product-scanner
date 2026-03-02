@@ -220,8 +220,9 @@ def parse_user_profile(user_profile_data: dict):
 
 # ----- Build products at cold-start ----- #
 RAW_PRODUCTS = load_products_from_dynamodb()
-app_logger.info(RAW_PRODUCTS)
 PRODUCTS_BY_BRAND = build_products(RAW_PRODUCTS, BRAND_ALIASES, STOPWORDS)
+app_logger.info(
+    f"Cold start complete. {len(RAW_PRODUCTS)} products across {len(PRODUCTS_BY_BRAND)} brands.")
 
 
 # ----- Lambda Handler ----- #
@@ -238,17 +239,40 @@ def handler(event, context):
 
         try:
             body = json.loads(event.get("body", "{}"))
-            image_b64 = body.get("image_base64")
             user_profile_data = body.get("user_profile")
 
-            if not image_b64:
+            # ── Name search branch (fallback) ─────────────────────────
+            product_name_query = body.get("product_name")
+            if product_name_query:
+                app_logger.info(f"Name search: {product_name_query}")
+                matched_product = match_product(
+                    product_name_query, PRODUCTS_BY_BRAND, STOPWORDS)
+                if not matched_product:
+                    return {
+                        "statusCode": 200,
+                        "headers": cors_headers(),
+                        "body": json.dumps({
+                            "status": "❌ Product Not Found",
+                            "message": "We couldn't confidently identify this product, so we didn't make a guess."
+                        })
+                    }
+                user_profile = parse_user_profile(user_profile_data)
+                result = build_result(
+                    matched_product, user_profile, PRODUCTS_BY_BRAND)
                 return {
-                    "statusCode": 400,
+                    "statusCode": 200,
                     "headers": cors_headers(),
-                    "body": json.dumps({"error": "image_base64 is required"})
+                    "body": json.dumps(result)
                 }
 
             # --- Upload image to S3 so Textract can read it --- #
+            image_b64 = body.get("image_base64")
+            if not image_b64 and not product_name_query:
+                return {
+                    "statusCode": 400,
+                    "headers": cors_headers(),
+                    "body": json.dumps({"error": "image_base64 or product name is required"})
+                }
             image_bytes = base64.b64decode(image_b64)
             key = f"incoming/{uuid.uuid4()}.jpg"
             s3_client.put_object(Bucket=SCANNER_BUCKET,

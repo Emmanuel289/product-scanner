@@ -1,4 +1,4 @@
-export const API_ENDPOINT = "https://21wdgo4t86.execute-api.us-east-1.amazonaws.com/prod/scan";
+export const API_ENDPOINT = "https://dsll15fifd.execute-api.us-east-1.amazonaws.com/prod/scan";
 
 export const SKIN_TYPES = [
   { id: "dry", label: "Dry", icon: "🌵" },
