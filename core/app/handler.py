@@ -1,17 +1,29 @@
 import base64
 import json
+import logging
 import os
 import re
 import uuid
 import boto3
 from random import sample
 from typing import List, Dict, Set
-from constants import app_logger, CONFIDENCE_THRESHOLD, BRAND_ALIASES, RAW_PRODUCTS, STOPWORDS, UserProfile
+from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, STOPWORDS, UserProfile
 from decision_engine import recommend
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+
+app_logger = logging.getLogger(__name__)
 
 SCANNER_BUCKET = os.environ.get("SCANNER_BUCKET", "product-scanner-maximus")
 s3_client = boto3.client("s3")
 textract_client = boto3.client("textract")
+
+dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+PRODUCTS_TABLE = os.environ.get("PRODUCTS_TABLE", "product-scanner-products")
 
 
 # ----- Helper functions ----- #
@@ -28,6 +40,31 @@ def normalize_text(text: str, aliases: dict) -> str:
 def tokenize(text: str, stop_words: set) -> list:
     tokens = text.split()
     return [t for t in tokens if t not in stop_words and len(t) > 2]
+
+
+def load_products_from_dynamodb() -> list:
+    """
+    Scan the entire products table at cold start.
+    Returns a list of product dicts in the same shape as RAW_PRODUCTS.
+    """
+    table = dynamodb.Table(PRODUCTS_TABLE)
+    products = []
+
+    try:
+        response = table.scan()
+        products.extend(response.get("Items", []))
+
+        # Handle pagination — scan returns max 1MB per call
+        while "LastEvaluatedKey" in response:
+            response = table.scan(
+                ExclusiveStartKey=response["LastEvaluatedKey"])
+            products.extend(response.get("Items", []))
+
+        app_logger.info(f"Loaded {len(products)} products from DynamoDB")
+    except Exception as e:
+        app_logger.error(f"Failed to load products from DynamoDB: {e}")
+
+    return products
 
 
 def build_products(raw_products: List[Dict[str, str]], aliases: Dict[str, str], stop_words: Set[str]) -> Dict[str, List[Dict]]:
@@ -102,9 +139,10 @@ def explain_alternative(matched: Dict, alternative: Dict) -> str:
     shared_concerns = matched_concerns & alt_concerns
 
     if shared_concerns:
-        parts.append(f"Same {','.join(shared_concerns)} goal")
+        parts.append(
+            f"This product targets the same {','.join(shared_concerns)} goal")
     elif alt_intent:
-        parts.append(f"Focuses on {alt_intent} instead")
+        parts.append(f"but focuses on {alt_intent} instead")
 
     # --- Texture difference --- #
     matched_texture = matched.get("texture", "")
@@ -117,7 +155,8 @@ def explain_alternative(matched: Dict, alternative: Dict) -> str:
     alt_skin = set(alternative.get("skin_types", []))
     unique_to_alt = alt_skin - matched_skin
     if unique_to_alt:
-        parts.append(f"better suited for {', '.join(unique_to_alt)} skin")
+        parts.append(
+            f"This product is better suited for {', '.join(unique_to_alt)} skin")
 
     # --- Fallback if nothing meaningful to compare --- #
     if not parts:
@@ -164,7 +203,7 @@ def run_textract_and_match(bucket: str, key: str, products_by_brand: Dict[str, L
         if item["BlockType"] == "LINE"
     ]
     text_from_image = " ".join(lines)
-    app_logger.info("Detected text:", text_from_image)
+    app_logger.info(f"Detected text: {text_from_image}")
     return match_product(text_from_image, products_by_brand, stop_words)
 
 
@@ -180,6 +219,8 @@ def parse_user_profile(user_profile_data: dict):
 
 
 # ----- Build products at cold-start ----- #
+RAW_PRODUCTS = load_products_from_dynamodb()
+app_logger.info(RAW_PRODUCTS)
 PRODUCTS_BY_BRAND = build_products(RAW_PRODUCTS, BRAND_ALIASES, STOPWORDS)
 
 

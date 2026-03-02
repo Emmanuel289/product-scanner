@@ -1,4 +1,4 @@
-from constants import RiskLevel, SkinType, UserProfile
+from constants import FitScoreThreshold, Outcome, RiskLevel, SkinType, UserProfile
 from typing import Dict, List, Optional
 
 
@@ -61,11 +61,11 @@ def compute_fit_score(product: Dict, user_profile: UserProfile) -> int:
 def recommend(product: Dict, user_profile: Optional[UserProfile] = None) -> Dict:
     """
     Given a product and optional user profile, return a decision summary including:
-    - outcome (good/mixed/avoid)
+    - outcome (good/mixed/not recommended)
     - rationale (why it's recommended or not)
     - personalization flag
     """
-    outcome = "✅ Good match"
+    outcome = None
     rationale: List[str] = []
     personalized = False
     fit_score = None
@@ -73,20 +73,20 @@ def recommend(product: Dict, user_profile: Optional[UserProfile] = None) -> Dict
     # --- Product skin type conflict check --- #
     skin_types: List = product.get("skin_types", [])
     if SkinType.DRY.value in skin_types and SkinType.OILY.value in skin_types:
-        outcome = "⚠️ Mixed match"
+        outcome = Outcome.MIXED.value
         rationale.append(
             "This product is suitable for both dry and oily skin types."
         )
 
     # --- Comedogenic / sensitivity risk --- #
     if product.get("comedogenic_risk", RiskLevel.LOW.value) == RiskLevel.HIGH.value:
-        outcome = "⚠️ Use this product with caution"
+        outcome = Outcome.NOT_RECOMMENDED.value
         rationale.append(
             "This product has a high comedogenic risk and may cause breakouts."
         )
 
     if product.get("sensitivity_risk", RiskLevel.LOW.value) == RiskLevel.HIGH.value:
-        outcome = "⚠️ Use this product with caution"
+        outcome = Outcome.NOT_RECOMMENDED.value
         rationale.append(
             "This product has a high sensitivity risk and may irritate the skin."
         )
@@ -95,7 +95,7 @@ def recommend(product: Dict, user_profile: Optional[UserProfile] = None) -> Dict
     avoid: List = product.get("avoid_for", [])
     if avoid:
         rationale.append(
-            f"This product is not ideal for: {', '.join(avoid)}")
+            f"This product is not ideal for {', '.join(avoid)} skin type(s)")
 
     # --- Benefits and limitations --- #
     pros: List = product.get("pros", [])
@@ -128,7 +128,7 @@ def recommend(product: Dict, user_profile: Optional[UserProfile] = None) -> Dict
                     f"This product is well aligned with your {user_skin_type_val} skin type."
                 )
             elif user_skin_type_val in product.get("avoid_for", []):
-                outcome = "❌ This product is not recommended"
+                outcome = Outcome.NOT_RECOMMENDED.value
                 rationale.append(
                     f"This product is not suitable for your {user_skin_type_val} skin type."
                 )
@@ -147,20 +147,27 @@ def recommend(product: Dict, user_profile: Optional[UserProfile] = None) -> Dict
         conflicting_concerns = [
             concern for concern in user_concerns if concern in concerns_not_ideal]
         if conflicting_concerns:
-            outcome = "⚠️ Use this product with caution"
+            outcome = Outcome.NOT_RECOMMENDED.value
             rationale.append(
                 f"This product may not be ideal for your concerns: {', '.join(conflicting_concerns)}"
             )
 
         # --- Sensitivity override --- #
         if user_sensitive and product.get("sensitivity_risk", RiskLevel.LOW.value) == RiskLevel.HIGH.value:
-            outcome = "❌ This product is not recommended"
+            outcome = Outcome.NOT_RECOMMENDED.value
             rationale.append(
                 "This product has a high sensitivity risk level and you indicated having sensitive skin."
             )
 
-        # --- Compute fit score --- #
+        # --- Compute fit score for a user profile selection --- #
         fit_score = compute_fit_score(product, user_profile)
+
+        if fit_score >= FitScoreThreshold.GOOD.value:
+            outcome = Outcome.GOOD.value
+        elif fit_score >= FitScoreThreshold.MIXED.value and fit_score < FitScoreThreshold.GOOD.value:
+            outcome = Outcome.MIXED.value
+        else:
+            outcome = Outcome.NOT_RECOMMENDED.value
 
     # --- Final summary --- #
     summary = {

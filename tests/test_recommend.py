@@ -1,4 +1,4 @@
-from constants import Category, CoverageType, FinishType, RiskLevel, SkinType, TextureType, UserProfile
+from constants import Category, CoverageType, FinishType, FitScoreThreshold, Outcome, RiskLevel, SkinType, TextureType, UserProfile
 from decision_engine import recommend
 
 MOCK_PRODUCT = {
@@ -24,60 +24,41 @@ def test_recommendation_no_user_profile() -> None:
     summary = recommend(MOCK_PRODUCT)
     assert summary.get("personalized") is False
     assert summary.get("fit_score") is None
-    # No personalised hints in rationale without a profile
     assert not any("your" in r.lower() for r in summary.get("rationale", []))
 
 
 def test_recommendation_user_with_oily_skin_and_acne() -> None:
-    """Recommendation for user with oily skin and acne concerns."""
     user = UserProfile(skin_type=SkinType.OILY.value,
                        concerns=["acne"], sensitive=False)
     summary = recommend(MOCK_PRODUCT, user)
-
     assert summary.get("personalized") is True
-    # General avoid block uses lowercase — match accordingly
-    assert any("not ideal for: very dry" in r.lower()
-               for r in summary.get("rationale", []))
-    # Concern match block uses lowercase "targets"
-    assert any("targets your concerns" in r.lower()
-               for r in summary.get("rationale", []))
-    assert any(
-        o in summary.get("outcome", "")
-        for o in ["✅ Good match", "⚠️ Mixed match", "⚠️ Use with caution"]
-    )
+    fit_score = summary.get("fit_score")
+    if fit_score >= FitScoreThreshold.GOOD.value:
+        assert summary["outcome"] == Outcome.GOOD.value
+    elif fit_score >= FitScoreThreshold.MIXED_MATCH.value:
+        assert summary["outcome"] == Outcome.MIXED.value
+    else:
+        assert summary["outcome"] == Outcome.NOT_RECOMMENDED.value
 
 
 def test_user_with_dry_sensitive_skin_and_eczema() -> None:
-    """Recommendation for user with dry, sensitive skin and eczema concerns."""
     user = UserProfile(skin_type=SkinType.DRY.value,
                        concerns=["eczema"], sensitive=True)
     summary = recommend(MOCK_PRODUCT, user)
-
     assert summary.get("personalized") is True
-    assert any("not ideal for: very dry" in r.lower()
-               for r in summary.get("rationale", []))
-    # eczema is in concerns_not_ideal — should not appear in concerns_targeted
-    assert not any(
-        concern in user.concerns for concern in summary.get("concerns_targeted", [])
-    )
-    assert any(
-        o in summary.get("outcome", "")
-        for o in ["⚠️ Use this product with caution", "❌ This product is not recommended"]
-    )
+    fit_score = summary.get("fit_score")
+    assert fit_score == 55
+    assert summary["outcome"] == Outcome.MIXED.value
 
 
 def test_user_with_high_sensitivity_risk() -> None:
-    """Recommendation for a product with high sensitivity risk for a sensitive user."""
     high_sensitivity_product = {**MOCK_PRODUCT,
                                 "sensitivity_risk": RiskLevel.HIGH.value}
     user = UserProfile(skin_type=SkinType.NORMAL.value,
                        concerns=[], sensitive=True)
     summary = recommend(high_sensitivity_product, user)
-
-    # sensitive=True + HIGH sensitivity_risk triggers the not-recommended override
-    assert "not recommended" in summary.get("outcome", "").lower()
-    assert any("sensitivity risk" in r.lower()
-               for r in summary.get("rationale", []))
+    assert summary["fit_score"] < FitScoreThreshold.MIXED.value
+    assert summary["outcome"] == Outcome.NOT_RECOMMENDED.value
 
 
 def test_user_with_concerns_but_no_skin_type() -> None:

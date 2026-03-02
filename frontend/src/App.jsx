@@ -2,15 +2,61 @@ import { useState } from "react";
 import ScanStep from "./components/ScanStep";
 import LoadingState from "./components/LoadingState";
 import ResultView from "./components/ResultView";
+import { ArrowLeftIcon, ArrowRightIcon } from "./components/icons/Icons";
 
 export default function App() {
-  const [phase, setPhase] = useState("scan"); // scan | loading | result
+  const [phase, setPhase] = useState("scan");
   const [result, setResult] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
+  // history only tracks scan ↔ result — loading is transient
+  const [history, setHistory] = useState(["scan"]);
+  const [historyIndex, setHistoryIndex] = useState(0);
 
-  const handleResult = (data, b64) => { setResult(data); setImageBase64(b64); setPhase("result"); };
-  const handleLoading = (v) => { if (v) setPhase("loading"); };
-  const handleReset = () => { setResult(null); setImageBase64(null); setPhase("scan"); };
+  const navigateTo = (newPhase) => {
+    if (newPhase === "loading") {
+      setPhase("loading");
+      return;
+    }
+    const newHistory = [...history.slice(0, historyIndex + 1), newPhase];
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setPhase(newPhase);
+  };
+
+  const goBack = () => {
+    if (historyIndex === 0) return;
+    const newIndex = historyIndex - 1;
+    setHistoryIndex(newIndex);
+    setPhase(history[newIndex]);
+  };
+
+  const goForward = () => {
+    if (historyIndex >= history.length - 1) return;
+    const newIndex = historyIndex + 1;
+    setHistoryIndex(newIndex);
+    setPhase(history[newIndex]);
+  };
+
+  const handleResult = (data, b64) => { setResult(data); setImageBase64(b64); navigateTo("result"); };
+  const handleLoading = (v) => { if (v) navigateTo("loading"); };
+  const handleReset = () => { setResult(null); setImageBase64(null); setHistory(["scan"]); setHistoryIndex(0); setPhase("scan"); };
+
+  const canGoBack = historyIndex > 0 && phase !== "loading";
+  const canGoForward = historyIndex < history.length - 1 && phase !== "loading";
+
+  const navBtnStyle = (enabled) => ({
+    background: "transparent",
+    border: `1px solid ${enabled ? "#2a2a2a" : "transparent"}`,
+    borderRadius: 8,
+    padding: "6px 8px",
+    color: enabled ? "#666" : "#2a2a2a",
+    cursor: enabled ? "pointer" : "default",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s ease",
+    pointerEvents: enabled ? "auto" : "none",
+  });
 
   return (
     <>
@@ -23,13 +69,34 @@ export default function App() {
 
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 0 32px" }}>
-            <div>
+
+            {/* Back + forward */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                onClick={goBack}
+                disabled={!canGoBack}
+                style={navBtnStyle(canGoBack)}
+                onMouseEnter={e => { if (canGoBack) e.currentTarget.style.borderColor = "#444"; }}
+                onMouseLeave={e => { if (canGoBack) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+              >
+                <ArrowLeftIcon />
+              </button>
+              <button
+                onClick={goForward}
+                disabled={!canGoForward}
+                style={navBtnStyle(canGoForward)}
+                onMouseEnter={e => { if (canGoForward) e.currentTarget.style.borderColor = "#444"; }}
+                onMouseLeave={e => { if (canGoForward) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+              >
+                <ArrowRightIcon />
+              </button>
+            </div>
+
+            {/* Brand */}
+            <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", letterSpacing: -0.5 }}>StyleCast</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#444", letterSpacing: 2, textTransform: "uppercase" }}>Product Scanner</div>
             </div>
-            {phase === "result" && (
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 10px #22c55e" }} />
-            )}
           </div>
 
           {/* Step indicator */}

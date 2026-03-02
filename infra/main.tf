@@ -66,6 +66,17 @@ data "aws_iam_policy_document" "lambda_policy" {
     effect    = "Allow"
     resources = ["*"]
   }
+  statement {
+    actions = [
+      "dynamodb:Scan",
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+    ]
+    effect    = "Allow"
+    resources = [aws_dynamodb_table.products.arn]
+  }
 
 }
 resource "aws_iam_role" "lambda_role" {
@@ -94,6 +105,7 @@ resource "aws_lambda_function" "scanner" {
   environment {
     variables = {
       SCANNER_BUCKET = aws_s3_bucket.uploads.bucket
+      PRODUCTS_TABLE = aws_dynamodb_table.products.name
     }
   }
 

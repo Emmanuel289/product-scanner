@@ -10,7 +10,7 @@ from handler import handler
 FAKE_IMAGE = base64.b64encode(b"fake-image-bytes").decode()
 
 
-def S3_EVENT(key, user_profile=None): return {
+def s3_event(key, user_profile=None): return {
     "Records": [{
         "s3": {
             "bucket": {"name": "product-scanner-maximus"},
@@ -21,7 +21,7 @@ def S3_EVENT(key, user_profile=None): return {
 }
 
 
-def HTTP_EVENT(body): return {
+def http_event(body): return {
     "httpMethod": "POST",
     "body": json.dumps(body),
 }
@@ -85,21 +85,21 @@ def test_cors_preflight_returns_200():
 
 
 def test_missing_image_base64_returns_400():
-    response = handler(HTTP_EVENT({}), None)
+    response = handler(http_event({}), None)
     assert response["statusCode"] == 400
     body = json.loads(response["body"])
     assert "error" in body
 
 
 def test_http_product_not_found_when_no_match(mock_no_match):
-    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert "Not Found" in body["status"]
 
 
 def test_http_response_has_expected_shape(mock_match):
-    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     for key in ["status", "brand", "product_name", "product_summary", "alternatives"]:
@@ -107,7 +107,7 @@ def test_http_response_has_expected_shape(mock_match):
 
 
 def test_http_fit_score_is_none_without_user_profile(mock_match):
-    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -116,7 +116,7 @@ def test_http_fit_score_is_none_without_user_profile(mock_match):
 
 
 def test_http_returns_fit_score_when_user_profile_provided(mock_match):
-    response = handler(HTTP_EVENT({
+    response = handler(http_event({
         "image_base64": FAKE_IMAGE,
         "user_profile": {"skin_type": "oily", "concerns": [], "sensitive": False},
     }), None)
@@ -128,13 +128,13 @@ def test_http_returns_fit_score_when_user_profile_provided(mock_match):
 
 
 def test_alternatives_are_returned(mock_match):
-    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
     body = json.loads(response["body"])
     assert len(body["alternatives"]) > 0
 
 
 def test_alternatives_have_meaningful_explanations(mock_match):
-    response = handler(HTTP_EVENT({"image_base64": FAKE_IMAGE}), None)
+    response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
     body = json.loads(response["body"])
     for alt in body["alternatives"]:
         assert "name" in alt
@@ -147,14 +147,14 @@ def test_alternatives_have_meaningful_explanations(mock_match):
 
 # ── S3 branch ──────────────────────────────────────────────────────────────────
 def test_s3_event_product_not_found(mock_no_match):
-    response = handler(S3_EVENT("scans/unknown.jpg"), None)
+    response = handler(s3_event("scans/unknown.jpg"), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert "Not Found" in body["status"]
 
 
 def test_s3_event_without_user_profile(mock_match):
-    response = handler(S3_EVENT("scans/test-image.jpg"), None)
+    response = handler(s3_event("scans/test-image.jpg"), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -164,7 +164,7 @@ def test_s3_event_without_user_profile(mock_match):
 
 def test_s3_event_with_user_profile(mock_match):
     user_profile = {"skin_type": "oily", "concerns": [], "sensitive": False}
-    response = handler(S3_EVENT("scans/test-image.jpg", user_profile), None)
+    response = handler(s3_event("scans/test-image.jpg", user_profile), None)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
@@ -173,27 +173,22 @@ def test_s3_event_with_user_profile(mock_match):
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
-
 @pytest.fixture
 def mock_match():
-    """
-    Patches match_product to return MOCK_MATCHED_PRODUCT and
-    PRODUCTS_BY_BRAND to include a real alternative so build_result()
-    can produce a non-empty alternatives list.
-    """
     with patch("handler.s3_client") as mock_s3, \
             patch("handler.textract_client"), \
             patch("handler.match_product", return_value=MOCK_MATCHED_PRODUCT), \
-            patch("handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND):
+            patch("handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND), \
+            patch("handler.load_products_from_dynamodb", return_value=[]):  # ← add this
         mock_s3.put_object.return_value = {}
         yield
 
 
 @pytest.fixture
 def mock_no_match():
-    """Forces match_product to return None — simulates unrecognised product."""
     with patch("handler.s3_client") as mock_s3, \
             patch("handler.textract_client"), \
-            patch("handler.match_product", return_value=None):
+            patch("handler.match_product", return_value=None), \
+            patch("handler.load_products_from_dynamodb", return_value=[]):  # ← add this
         mock_s3.put_object.return_value = {}
         yield

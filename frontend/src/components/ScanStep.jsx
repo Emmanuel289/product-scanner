@@ -141,7 +141,7 @@ export default function ScanStep({ onResult, onLoading }) {
                 onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 0 24px rgba(99,102,241,0.4)"; }}
                 style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 12, padding: "16px 24px", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: 0.5, boxShadow: "0 0 24px rgba(99,102,241,0.4)", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
             >
-                Analyze Product →
+                Scan Product
             </button>
         </div>
     );
