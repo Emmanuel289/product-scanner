@@ -72,7 +72,7 @@ The top-left back and forward arrows let you navigate between the scan screen an
 
 ---
 ## Testing 
-The app is deployed on Vercel at this [product-scanner-app](https://maximus-product-scanner.vercel.app/). Do try out some of the workflows!
+The app is deployed on Vercel at [product-scanner](https://maximus-product-scanner.vercel.app/). Do try out the user workflows!
 
 ## Local Development
 
