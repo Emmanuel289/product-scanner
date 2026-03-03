@@ -1,5 +1,4 @@
-export const API_ENDPOINT = "https://0obqtz4ry3.execute-api.us-east-1.amazonaws.com/prod/scan";
-
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 export const SKIN_TYPES = [
   { id: "dry", label: "Dry", icon: "🌵" },
   { id: "oily", label: "Oily", icon: "💧" },
