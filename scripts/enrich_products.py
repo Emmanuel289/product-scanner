@@ -10,19 +10,19 @@ Flags:
     --brand       Only enrich products for a specific brand
                   e.g. --brand "La Roche-Posay"
 """
-import anthropic
-import boto3
-import json
+
 import argparse
-import sys
+import json
 import os
+import sys
 import time
 
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), "..", "core", "app"))
+import anthropic
+import boto3
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core", "app"))  # noqa
 
 TABLE_NAME = os.environ.get("PRODUCTS_TABLE", "product-scanner-products")
-
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 table = dynamodb.Table(TABLE_NAME)
 client = anthropic.Anthropic()
@@ -62,11 +62,12 @@ Rules:
 
 # ── Claude call ────────────────────────────────────────────────────────────────
 
+
 def enrich_product(product: dict) -> dict:
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=512,
-        messages=[{"role": "user", "content": build_prompt(product)}]
+        messages=[{"role": "user", "content": build_prompt(product)}],
     )
 
     raw = message.content[0].text.strip()
@@ -82,6 +83,7 @@ def enrich_product(product: dict) -> dict:
 
 
 # ── DynamoDB ───────────────────────────────────────────────────────────────────
+
 
 def load_products(brand_filter: str = None) -> list:
     response = table.scan()
@@ -99,18 +101,17 @@ def load_products(brand_filter: str = None) -> list:
 def write_enrichment(product_id: str, enrichment: dict):
     table.update_item(
         Key={"product_id": product_id},
-        UpdateExpression=(
-            "SET ingredient_intent = :ii, pros = :p, cons = :c"
-        ),
+        UpdateExpression=("SET ingredient_intent = :ii, pros = :p, cons = :c"),
         ExpressionAttributeValues={
             ":ii": enrichment["ingredient_intent"],
-            ":p":  enrichment["pros"],
-            ":c":  enrichment["cons"],
-        }
+            ":p": enrichment["pros"],
+            ":c": enrichment["cons"],
+        },
     )
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
+
 
 def main(dry_run: bool, brand_filter: str):
     products = load_products(brand_filter)
@@ -126,20 +127,20 @@ def main(dry_run: bool, brand_filter: str):
             enrichment = enrich_product(product)
 
             # Preview what will be written
-            print(f"    ingredient_intent: {enrichment['ingredient_intent']}")
-            print(f"    pros: {enrichment['pros']}")
-            print(f"    cons: {enrichment['cons']}")
+            print(f"ingredient_intent: {enrichment['ingredient_intent']}")
+            print(f"pros: {enrichment['pros']}")
+            print(f"cons: {enrichment['cons']}")
 
             if not dry_run:
                 write_enrichment(product["product_id"], enrichment)
-                print(f"    ✅ Written to DynamoDB")
+                print(f"✅ Written to DynamoDB")
             else:
-                print(f"    🔍 Dry run — not written")
+                print(f"🔍 Dry run — not written")
 
             success += 1
 
         except Exception as e:
-            print(f"    ❌ Failed: {e}")
+            print(f"❌ Failed: {e}")
             failed += 1
 
         # Be polite to the API
@@ -152,11 +153,12 @@ def main(dry_run: bool, brand_filter: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Enrich products in DynamoDB with Claude")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Preview without writing")
-    parser.add_argument("--brand", type=str, default=None,
-                        help="Filter by brand name")
+        description="Enrich products in DynamoDB with Claude"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without writing"
+    )
+    parser.add_argument("--brand", type=str, default=None, help="Filter by brand name")
     args = parser.parse_args()
 
     main(dry_run=args.dry_run, brand_filter=args.brand)

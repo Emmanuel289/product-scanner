@@ -1,12 +1,18 @@
 import boto3
-import sys
 import os
+import sys
 
-from constants import app_logger, Category, CoverageType, FinishType, SkinType, RiskLevel, TextureType
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core", "app"))  # noqa
 
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), "..", "core", "app"))
-
+from constants import (
+    Category,
+    CoverageType,
+    FinishType,
+    RiskLevel,
+    SkinType,
+    TextureType,
+    app_logger,
+)
 
 TABLE_NAME = "product-scanner-products"
 
@@ -15,11 +21,9 @@ table = dynamodb.Table(TABLE_NAME)
 
 # ---- The raw source of truth for all the beauty products, categorized by brands (3 brands, 8 products per brand) ---- #
 RAW_PRODUCTS = [
-
     # =========================
     # DIOR
     # =========================
-
     {
         "brand": "Dior",
         "name": "Dior Forever Skin Glow Foundation",
@@ -34,7 +38,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Forever Matte Foundation",
@@ -49,7 +52,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Addict Lip Glow",
@@ -63,7 +65,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Rouge Dior Lipstick",
@@ -77,7 +78,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Backstage Face & Body Foundation",
@@ -92,7 +92,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Capture Totale Super Potent Serum",
@@ -105,7 +104,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Hydra Life Fresh Hydration Sorbet Cream",
@@ -119,7 +117,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.MEDIUM.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Dior",
         "name": "Dior Forever Skin Correct Concealer",
@@ -134,11 +131,9 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     # =========================
     # RARE BEAUTY
     # =========================
-
     {
         "brand": "Rare Beauty",
         "name": "Liquid Touch Weightless Foundation",
@@ -153,7 +148,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Positive Light Tinted Moisturizer",
@@ -168,7 +162,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Soft Pinch Liquid Blush",
@@ -182,7 +175,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Soft Pinch Tinted Lip Oil",
@@ -196,7 +188,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Always an Optimist Pore Diffusing Primer",
@@ -210,7 +201,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Stay Vulnerable Glossy Lip Balm",
@@ -224,7 +214,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Find Comfort Hydrating Body Lotion",
@@ -237,7 +226,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.MEDIUM.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "Rare Beauty",
         "name": "Kind Words Matte Lipstick",
@@ -251,11 +239,9 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     # =========================
     # LA ROCHE-POSAY
     # =========================
-
     {
         "brand": "La Roche-Posay",
         "name": "Toleriane Hydrating Gentle Cleanser",
@@ -268,7 +254,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Toleriane Double Repair Face Moisturizer",
@@ -281,7 +266,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.MEDIUM.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Effaclar Purifying Foaming Gel Cleanser",
@@ -294,7 +278,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Effaclar Mat Oil-Free Moisturizer",
@@ -308,7 +291,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Effaclar A.I. Targeted Breakout Corrector",
@@ -321,7 +303,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.MEDIUM.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Hyalu B5 Pure Hyaluronic Acid Serum",
@@ -334,7 +315,6 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.LOW.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Cicaplast Baume B5",
@@ -347,14 +327,17 @@ RAW_PRODUCTS = [
         "comedogenic_risk": RiskLevel.MEDIUM.value,
         "sensitivity_risk": RiskLevel.LOW.value,
     },
-
     {
         "brand": "La Roche-Posay",
         "name": "Anthelios Melt-in Milk Sunscreen SPF 60",
         "category": Category.SUNSCREEN.value,
         "texture": TextureType.LOTION.value,
         "finish": FinishType.NATURAL.value,
-        "best_for": [SkinType.NORMAL.value, SkinType.DRY.value, SkinType.SENSITIVE.value],
+        "best_for": [
+            SkinType.NORMAL.value,
+            SkinType.DRY.value,
+            SkinType.SENSITIVE.value,
+        ],
         "avoid_for": [],
         "concerns_targeted": ["sun protection"],
         "concerns_not_ideal": ["matte finish"],
@@ -365,8 +348,7 @@ RAW_PRODUCTS = [
 
 
 def seed():
-    app_logger.info(
-        f"Seeding {len(RAW_PRODUCTS)} products into {TABLE_NAME}...\n")
+    app_logger.info(f"Seeding {len(RAW_PRODUCTS)} products into {TABLE_NAME}...\n")
     success = 0
     failed = 0
 
@@ -377,25 +359,25 @@ def seed():
         )
 
         item = {
-            "product_id":        product_id,
-            "brand":             product["brand"],
-            "name":              product["name"],
-            "category":          product.get("category", ""),
-            "texture":           product.get("texture", ""),
-            "finish":            product.get("finish", "") or "",
-            "coverage":          product.get("coverage", "") or "",
+            "product_id": product_id,
+            "brand": product["brand"],
+            "name": product["name"],
+            "category": product.get("category", ""),
+            "texture": product.get("texture", ""),
+            "finish": product.get("finish", "") or "",
+            "coverage": product.get("coverage", "") or "",
             # best_for in RAW_PRODUCTS holds skin types — map to skin_types
-            "skin_types":        product.get("best_for", []),
-            "best_for":          product.get("best_for", []),
-            "avoid_for":         product.get("avoid_for", []),
+            "skin_types": product.get("best_for", []),
+            "best_for": product.get("best_for", []),
+            "avoid_for": product.get("avoid_for", []),
             "concerns_targeted": product.get("concerns_targeted", []),
             "concerns_not_ideal": product.get("concerns_not_ideal", []),
-            "comedogenic_risk":  product.get("comedogenic_risk", "low"),
-            "sensitivity_risk":  product.get("sensitivity_risk", "low"),
+            "comedogenic_risk": product.get("comedogenic_risk", "low"),
+            "sensitivity_risk": product.get("sensitivity_risk", "low"),
             # Not in RAW_PRODUCTS yet — placeholder for future enrichment
             "ingredient_intent": product.get("ingredient_intent", ""),
-            "pros":              product.get("pros", []),
-            "cons":              product.get("cons", []),
+            "pros": product.get("pros", []),
+            "cons": product.get("cons", []),
         }
 
         try:
