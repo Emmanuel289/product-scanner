@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { API_ENDPOINT } from "../constants";
+import { API_URL } from "../constants";
 import { CameraIcon, UploadIcon } from "./icons/Icons";
 
 const SearchIcon = () => (
@@ -81,7 +81,7 @@ export default function ScanStep({ onResult, onLoading }) {
         onLoading(true);
         try {
             const base64 = preview.split(",")[1];
-            const res = await fetch(API_ENDPOINT, {
+            const res = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ image_base64: base64 }),
@@ -100,7 +100,7 @@ export default function ScanStep({ onResult, onLoading }) {
         if (!query || query.trim().length < 3) { setSearchResults(null); setSearching(false); return; }
         setSearching(true);
         try {
-            const res = await fetch(API_ENDPOINT, {
+            const res = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ product_name: query.trim() }),

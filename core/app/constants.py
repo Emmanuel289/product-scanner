@@ -1,21 +1,32 @@
 import logging
 from enum import Enum
-from pydantic import BaseModel
 from typing import List, Optional
+
+from pydantic import BaseModel
 
 app_logger = logging.getLogger(__name__)
 
 # ---- Values that wouldn't change (much) ---- #
 STOPWORDS = {
-    "new", "formula", "spf", "ml", "oz",
-    "fl", "with", "and", "the", "a",
-    "face", "body", "milk"
+    "new",
+    "formula",
+    "spf",
+    "ml",
+    "oz",
+    "fl",
+    "with",
+    "and",
+    "the",
+    "a",
+    "face",
+    "body",
+    "milk",
 }
 
 BRAND_ALIASES = {
     "la roche posay": "la roche-posay",
     "larocheposay": "la roche-posay",
-    "rarebeauty": "rare beauty"
+    "rarebeauty": "rare beauty",
 }
 
 CONFIDENCE_THRESHOLD = 0.8
@@ -69,8 +80,8 @@ class RiskLevel(Enum):
 
 
 class FitScoreThreshold(Enum):
-    GOOD = 80
-    MIXED = 55
+    GOOD = 81
+    MIXED = 57
 
 
 class Outcome(Enum):

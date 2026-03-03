@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_ENDPOINT, SKIN_TYPES } from "../constants";
+import { API_URL, SKIN_TYPES } from "../constants";
 import OutcomeBadge from "./ui/OutcomeBadge";
 import FitMeter from "./ui/FitMeter";
 import PillTag from "./ui/PillTag";
@@ -42,6 +42,7 @@ export default function ResultView({ data, imageBase64, onReset }) {
   // Use personalized data if available, otherwise use original scan result
   const activeData = personalizedData || data;
   const s = activeData.product_summary;
+  console.log(s)
   const fitScore = s?.fit_score ?? null;
   const isPersonalized = s?.personalized === true;
 
@@ -50,7 +51,7 @@ export default function ResultView({ data, imageBase64, onReset }) {
     setSkinType(id);
     setPersonalizing(true);
     try {
-      const res = await fetch(API_ENDPOINT, {
+      const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
