@@ -65,7 +65,7 @@ All infrastructure is defined in the `infra/` directory and managed via Terrafor
 | `aws_ecr_repository` | Hosts the Lambda container image |
 | `aws_lambda_function` | Runs the scanner container image
 | `aws_api_gateway_rest_api` | Exposes `POST /scan` and `OPTIONS /scan` |
-| `aws_dynamodb_table` | Persistent product store 
+| `aws_dynamodb_table` | Persistent product store
 | `aws_cloudwatch_log_group` | Log group for the Lambda logs
 | `aws_iam_role` + `aws_iam_role_policy` | Least-privilege: S3, Textract, DynamoDB, CloudWatch |
 | `null_resource` | Builds and pushes Docker image to ECR on Dockerfile change |

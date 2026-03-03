@@ -53,7 +53,7 @@ Tap any skin type on the product information page to generate a personalised fit
 ![Personalize1](./assets/scanner_8.png)
 
 ### 3 - Search by name
-Click **Can't scan? Search by name**, type at least 3 characters, and results appear instantly. 
+Click **Can't scan? Search by name**, type at least 3 characters, and results appear instantly.
 
 ![Search by name](./assets/scanner_9.png)
 
@@ -71,7 +71,7 @@ The top-left back and forward arrows let you navigate between the scan screen an
 ![Not found](./assets/scanner_12.png)
 
 ---
-## Testing 
+## Testing
 The app is deployed on Vercel at this [url](https://maximus-product-scanner.vercel.app/). Do try out some of the workflows!
 ## Local Development
 
@@ -107,9 +107,9 @@ cd frontend
 npm install
 ```
 
-Set your API endpoint in `src/constants.js`:
+Set your API_URL in `src/constants.js`:
 ```js
-export const API_ENDPOINT = "https://your-api-id.execute-api.us-east-1.amazonaws.com/prod/scan";
+export const API_URL = "https://your-api-id.execute-api.us-east-1.amazonaws.com/prod/scan";
 ```
 
 ```bash
