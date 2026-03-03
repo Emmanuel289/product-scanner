@@ -4,11 +4,12 @@ import logging
 import os
 import re
 import uuid
-import boto3
 from random import sample
-from typing import List, Dict, Set
-from constants import CONFIDENCE_THRESHOLD, BRAND_ALIASES, STOPWORDS, UserProfile
-from decision_engine import recommend
+from typing import Dict, List, Set
+
+import boto3
+from constants import BRAND_ALIASES, CONFIDENCE_THRESHOLD, STOPWORDS, UserProfile
+from decision_engine import generate_decision_summary
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,8 +57,7 @@ def load_products_from_dynamodb() -> list:
 
         # Handle pagination — scan returns max 1MB per call
         while "LastEvaluatedKey" in response:
-            response = table.scan(
-                ExclusiveStartKey=response["LastEvaluatedKey"])
+            response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
             products.extend(response.get("Items", []))
 
         app_logger.info(f"Loaded {len(products)} products from DynamoDB")
@@ -67,7 +67,9 @@ def load_products_from_dynamodb() -> list:
     return products
 
 
-def build_products(raw_products: List[Dict[str, str]], aliases: Dict[str, str], stop_words: Set[str]) -> Dict[str, List[Dict]]:
+def build_products(
+    raw_products: List[Dict[str, str]], aliases: Dict[str, str], stop_words: Set[str]
+) -> Dict[str, List[Dict]]:
     products_by_brand = {}
     for item in raw_products:
         full_name = f"{item['brand']} {item['name']}"
@@ -79,7 +81,6 @@ def build_products(raw_products: List[Dict[str, str]], aliases: Dict[str, str], 
             "brand": item["brand"],
             "name": item["name"],
             "search_tokens": tokens,
-
             # --- Classification --- #
             "category": item.get("category", ""),
             "texture": item.get("texture", ""),
@@ -95,13 +96,15 @@ def build_products(raw_products: List[Dict[str, str]], aliases: Dict[str, str], 
             "skin_types": item.get("skin_types", []),
             "ingredient_intent": item.get("ingredient_intent", ""),
             "pros": item.get("pros", []),
-            "cons": item.get("cons", [])
+            "cons": item.get("cons", []),
         }
         products_by_brand.setdefault(item["brand"], []).append(product_dict)
     return products_by_brand
 
 
-def match_product(text: str, products_by_brand: Dict[str, List[Dict]], stop_words: Set[str]) -> Dict:
+def match_product(
+    text: str, products_by_brand: Dict[str, List[Dict]], stop_words: Set[str]
+) -> Dict:
     norm_text = normalize_text(text, BRAND_ALIASES)
     text_tokens = set(tokenize(norm_text, stop_words))
     best_match = None
@@ -109,8 +112,7 @@ def match_product(text: str, products_by_brand: Dict[str, List[Dict]], stop_word
     for _, items in products_by_brand.items():
         for product in items:
             product_tokens = set(product["search_tokens"])
-            score = len(product_tokens & text_tokens) / \
-                max(len(product_tokens), 1)
+            score = len(product_tokens & text_tokens) / max(len(product_tokens), 1)
             if score > best_score:
                 best_score = score
                 best_match = product
@@ -124,7 +126,7 @@ def cors_headers():
     return {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST,OPTIONS"
+        "Access-Control-Allow-Methods": "POST,OPTIONS",
     }
 
 
@@ -132,15 +134,13 @@ def explain_alternative(matched: Dict, alternative: Dict) -> str:
     parts = []
 
     # --- Shared goal or different goal --- #
-    matched_intent = matched.get("ingredient_intent", "")
     alt_intent = alternative.get("ingredient_intent", "")
     matched_concerns = set(matched.get("concerns_targeted", []))
     alt_concerns = set(alternative.get("concerns_targeted", []))
     shared_concerns = matched_concerns & alt_concerns
 
     if shared_concerns:
-        parts.append(
-            f"This product targets the same {','.join(shared_concerns)} goal")
+        parts.append(f"This product targets the same {','.join(shared_concerns)} goal")
     elif alt_intent:
         parts.append(f"but focuses on {alt_intent} instead")
 
@@ -156,7 +156,8 @@ def explain_alternative(matched: Dict, alternative: Dict) -> str:
     unique_to_alt = alt_skin - matched_skin
     if unique_to_alt:
         parts.append(
-            f"This product is better suited for {', '.join(unique_to_alt)} skin")
+            f"This product is better suited for {', '.join(unique_to_alt)} skin"
+        )
 
     # --- Fallback if nothing meaningful to compare --- #
     if not parts:
@@ -168,20 +169,26 @@ def explain_alternative(matched: Dict, alternative: Dict) -> str:
     return " - ".join(parts) if parts else "Alternative formulation"
 
 
-def build_result(matched_product: Dict[str, str], user_profile, products_by_brand: Dict[str, List[Dict]]):
+def build_result(
+    matched_product: Dict[str, str],
+    user_profile,
+    products_by_brand: Dict[str, List[Dict]],
+):
     """Shared logic: run decision engine + build alternatives + return result dict."""
-    decision_summary = recommend(matched_product, user_profile)
+    decision_summary = generate_decision_summary(matched_product, user_profile)
 
     alternatives_pool = [
-        p for p in products_by_brand.get(matched_product["brand"], [])
+        p
+        for p in products_by_brand.get(matched_product["brand"], [])
         if p["name"] != matched_product["name"]
     ]
     alternatives = sample(alternatives_pool, min(2, len(alternatives_pool)))
     alt_results = [
         {
             "name": alt["name"],
-            "why_different": explain_alternative(matched_product, alt)
-        } for alt in alternatives
+            "why_different": explain_alternative(matched_product, alt),
+        }
+        for alt in alternatives
     ]
 
     return {
@@ -189,17 +196,23 @@ def build_result(matched_product: Dict[str, str], user_profile, products_by_bran
         "brand": matched_product["brand"],
         "product_name": matched_product["name"],
         "product_summary": decision_summary,
-        "alternatives": alt_results
+        "alternatives": alt_results,
     }
 
 
-def run_textract_and_match(bucket: str, key: str, products_by_brand: Dict[str, List[Dict]], stop_words: Set[str]) -> Dict:
+def run_textract_and_match(
+    bucket: str,
+    key: str,
+    products_by_brand: Dict[str, List[Dict]],
+    stop_words: Set[str],
+) -> Dict:
     """Run Textract on an S3 object and return the matched product or None."""
     response = textract_client.detect_document_text(
         Document={"S3Object": {"Bucket": bucket, "Name": key}}
     )
     lines = [
-        item["Text"] for item in response.get("Blocks", [])
+        item["Text"]
+        for item in response.get("Blocks", [])
         if item["BlockType"] == "LINE"
     ]
     text_from_image = " ".join(lines)
@@ -214,7 +227,7 @@ def parse_user_profile(user_profile_data: dict):
     return UserProfile(
         skin_type=user_profile_data.get("skin_type", ""),
         concerns=user_profile_data.get("concerns", []),
-        sensitive=user_profile_data.get("sensitive", False)
+        sensitive=user_profile_data.get("sensitive", False),
     )
 
 
@@ -222,7 +235,8 @@ def parse_user_profile(user_profile_data: dict):
 RAW_PRODUCTS = load_products_from_dynamodb()
 PRODUCTS_BY_BRAND = build_products(RAW_PRODUCTS, BRAND_ALIASES, STOPWORDS)
 app_logger.info(
-    f"Cold start complete. {len(RAW_PRODUCTS)} products across {len(PRODUCTS_BY_BRAND)} brands.")
+    f"Cold start complete. {len(RAW_PRODUCTS)} products across {len(PRODUCTS_BY_BRAND)} brands."
+)
 
 
 # ----- Lambda Handler ----- #
@@ -246,23 +260,25 @@ def handler(event, context):
             if product_name_query:
                 app_logger.info(f"Name search: {product_name_query}")
                 matched_product = match_product(
-                    product_name_query, PRODUCTS_BY_BRAND, STOPWORDS)
+                    product_name_query, PRODUCTS_BY_BRAND, STOPWORDS
+                )
                 if not matched_product:
                     return {
                         "statusCode": 200,
                         "headers": cors_headers(),
-                        "body": json.dumps({
-                            "status": "❌ Product Not Found",
-                            "message": "We couldn't confidently identify this product, so we didn't make a guess."
-                        })
+                        "body": json.dumps(
+                            {
+                                "status": "❌ Product Not Found",
+                                "message": "We couldn't confidently identify this product, so we didn't make a guess.",
+                            }
+                        ),
                     }
                 user_profile = parse_user_profile(user_profile_data)
-                result = build_result(
-                    matched_product, user_profile, PRODUCTS_BY_BRAND)
+                result = build_result(matched_product, user_profile, PRODUCTS_BY_BRAND)
                 return {
                     "statusCode": 200,
                     "headers": cors_headers(),
-                    "body": json.dumps(result)
+                    "body": json.dumps(result),
                 }
 
             # --- Upload image to S3 so Textract can read it --- #
@@ -271,34 +287,37 @@ def handler(event, context):
                 return {
                     "statusCode": 400,
                     "headers": cors_headers(),
-                    "body": json.dumps({"error": "image_base64 or product name is required"})
+                    "body": json.dumps(
+                        {"error": "image_base64 or product name is required"}
+                    ),
                 }
             image_bytes = base64.b64decode(image_b64)
             key = f"incoming/{uuid.uuid4()}.jpg"
-            s3_client.put_object(Bucket=SCANNER_BUCKET,
-                                 Key=key, Body=image_bytes)
+            s3_client.put_object(Bucket=SCANNER_BUCKET, Key=key, Body=image_bytes)
 
             # --- Textract + match --- #
             matched_product = run_textract_and_match(
-                SCANNER_BUCKET, key, PRODUCTS_BY_BRAND, STOPWORDS)
+                SCANNER_BUCKET, key, PRODUCTS_BY_BRAND, STOPWORDS
+            )
             if not matched_product:
                 return {
                     "statusCode": 200,
                     "headers": cors_headers(),
-                    "body": json.dumps({
-                        "status": "❌ Product Not Found",
-                        "message": "We couldn't confidently identify this product, so we didn't make a guess."
-                    })
+                    "body": json.dumps(
+                        {
+                            "status": "❌ Product Not Found",
+                            "message": "We couldn't confidently identify this product, so we didn't make a guess.",
+                        }
+                    ),
                 }
 
             # --- Decision engine --- #
             user_profile = parse_user_profile(user_profile_data)
-            result = build_result(
-                matched_product, user_profile, PRODUCTS_BY_BRAND)
+            result = build_result(matched_product, user_profile, PRODUCTS_BY_BRAND)
             return {
                 "statusCode": 200,
                 "headers": cors_headers(),
-                "body": json.dumps(result)
+                "body": json.dumps(result),
             }
 
         except Exception as e:
@@ -306,7 +325,7 @@ def handler(event, context):
             return {
                 "statusCode": 500,
                 "headers": cors_headers(),
-                "body": json.dumps({"error": str(e)})
+                "body": json.dumps({"error": str(e)}),
             }
 
     # ------------------------------------------------------------------ #
@@ -319,25 +338,24 @@ def handler(event, context):
 
         try:
             matched_product = run_textract_and_match(
-                bucket, key, PRODUCTS_BY_BRAND, STOPWORDS)
+                bucket, key, PRODUCTS_BY_BRAND, STOPWORDS
+            )
             if not matched_product:
                 return {
                     "statusCode": 200,
-                    "body": json.dumps({
-                        "status": "❌ Product Not Found",
-                        "message": "We couldn't confidently identify this product, so we didn't make a guess."
-                    })
+                    "body": json.dumps(
+                        {
+                            "status": "❌ Product Not Found",
+                            "message": "We couldn't confidently identify this product, so we didn't make a guess.",
+                        }
+                    ),
                 }
 
             user_profile = parse_user_profile(user_profile_data)
-            result = build_result(
-                matched_product, user_profile, PRODUCTS_BY_BRAND)
+            result = build_result(matched_product, user_profile, PRODUCTS_BY_BRAND)
 
             return {"statusCode": 200, "body": json.dumps(result)}
 
         except Exception as e:
             print("Error in S3 branch:", str(e))
-            return {
-                "statusCode": 500,
-                "body": json.dumps({"error": str(e)})
-            }
+            return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
