@@ -20,7 +20,6 @@ const SpinnerIcon = () => (
 export default function ScanStep({ onResult, onLoading }) {
     const [preview, setPreview] = useState(null);
     const [cameraActive, setCameraActive] = useState(false);
-    const [dragging, setDragging] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searching, setSearching] = useState(false);
@@ -73,7 +72,6 @@ export default function ScanStep({ onResult, onLoading }) {
         reader.readAsDataURL(f);
     };
 
-    const handleDrop = (e) => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); };
     const retake = () => { setPreview(null); stopCamera(); };
 
     const handleAnalyze = async () => {
@@ -204,12 +202,9 @@ export default function ScanStep({ onResult, onLoading }) {
 
                 <div
                     onClick={() => fileRef.current?.click()}
-                    onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={handleDrop}
-                    onMouseEnter={e => { if (!dragging) e.currentTarget.style.borderColor = "#6366f1"; }}
-                    onMouseLeave={e => { if (!dragging) e.currentTarget.style.borderColor = "#2a2a2a"; }}
-                    style={{ background: dragging ? "rgba(99,102,241,0.06)" : "#0d0d0d", border: `1px solid ${dragging ? "#6366f1" : "#2a2a2a"}`, borderRadius: 14, padding: "28px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "border-color 0.15s ease" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366f1"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                    style={{ background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 14, padding: "28px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "border-color 0.15s ease" }}
                 >
                     <div style={{ color: "#6366f1" }}><UploadIcon /></div>
                     <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Upload an image</span>
