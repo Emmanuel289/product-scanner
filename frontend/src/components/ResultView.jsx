@@ -17,7 +17,7 @@ function NotFound({ onReset, icon = "🔍" }) {
         Product Not Found
       </div>
       <div style={{ color: "#666", fontFamily: "'DM Sans', sans-serif", fontSize: 14, marginBottom: 24 }}>
-        We couldn't confidently identify this product, so we didn't make a guess.
+        The product couldn't be identified.
       </div>
       <button
         onClick={onReset}
@@ -41,9 +41,8 @@ export default function ResultView({ data, imageBase64, onReset }) {
 
   // Use personalized data if available, otherwise use original scan result
   const activeData = personalizedData || data;
-  const s = activeData.product_summary;
-  console.log(s)
-  const fitScore = s?.fit_score ?? null;
+  const s = activeData.product_summary || activeData;
+  const fitScore = s?.fit_score || null;
   const isPersonalized = s?.personalized === true;
 
   const handleSkinSelect = async (id) => {
@@ -230,7 +229,7 @@ export default function ResultView({ data, imageBase64, onReset }) {
       {/* ── Why this result ── */}
       {s.rationale?.length > 0 && (
         <div style={{ background: "#0a0a12", border: "1px solid #1e1e30", borderRadius: 16, padding: 20, marginBottom: 16 }}>
-          <SectionTitle>{isPersonalized ? "Why this score" : "Why this result"}</SectionTitle>
+          <SectionTitle>{"Why this result"}</SectionTitle>
           {s.rationale.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
               <span style={{ color: "#6366f1", marginTop: 2 }}><ChevronRight /></span>

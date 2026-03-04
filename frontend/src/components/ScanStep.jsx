@@ -197,7 +197,7 @@ export default function ScanStep({ onResult, onLoading }) {
                     style={{ background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 14, padding: "28px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "border-color 0.15s ease" }}
                 >
                     <div style={{ color: "#6366f1" }}><CameraIcon /></div>
-                    <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Take a photo</span>
+                    <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Take Photo</span>
                 </button>
 
                 <div
@@ -207,7 +207,7 @@ export default function ScanStep({ onResult, onLoading }) {
                     style={{ background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 14, padding: "28px 16px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, transition: "border-color 0.15s ease" }}
                 >
                     <div style={{ color: "#6366f1" }}><UploadIcon /></div>
-                    <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Upload an image</span>
+                    <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14 }}>Upload Image</span>
                 </div>
             </div>
 
