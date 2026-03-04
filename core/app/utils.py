@@ -128,14 +128,17 @@ def match_product(
     text_tokens = set(tokenize(norm_text, stop_words))
     best_match = None
     best_score = 0
+    print(f"number of products is {len(products_by_brand)}")
     for _, items in products_by_brand.items():
         for product in items:
             product_tokens = set(product["search_tokens"])
             score = len(product_tokens & text_tokens) / max(len(product_tokens), 1)
             if score > best_score:
+                print(f"current best score is {score}")
                 best_score = score
                 best_match = product
     if best_score >= CONFIDENCE_THRESHOLD:
+        print(f"Best score is {best_score}")
         app_logger.info(f"Best score: {best_score}\nBest match: {best_match}")
         return best_match
     return None

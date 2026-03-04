@@ -13,9 +13,6 @@ from utils import (
     upload_image_to_s3,
 )
 
-s3_client = boto3.client("s3")
-textract_client = boto3.client("textract")
-
 # ----- Build products at cold-start ----- #
 DOWNLOADED_PRODUCTS = load_products_from_dynamodb()
 PRODUCTS_BY_BRAND = build_products(DOWNLOADED_PRODUCTS, BRAND_ALIASES, STOPWORDS)
@@ -88,6 +85,7 @@ def handler(event, context):
                 key=key,
                 bucket=SCANNER_BUCKET,
             )
+            print(f"matched_product by image", matched_product_by_image)
             if not matched_product_by_image:
                 return {
                     "statusCode": 200,
