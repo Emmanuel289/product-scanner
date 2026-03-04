@@ -1,4 +1,4 @@
-from handler import explain_alternative
+from core.app.utils import explain_alternative
 
 
 def matched():

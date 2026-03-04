@@ -1,10 +1,9 @@
-# tests/test_lambda.py
 import base64
 import json
 from unittest.mock import patch
 
 import pytest
-from handler import handler
+from core.app.handler import handler
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 FAKE_IMAGE = base64.b64encode(b"fake-image-bytes").decode()
@@ -93,37 +92,32 @@ def test_missing_image_base64_product_name_query_returns_400():
     assert "error" in body
 
 
-def test_http_name_search_returns_result_when_matched():
+def test_http_name_search_returns_result_when_matched(mock_match):
     """Name search finds a product and returns full result shape."""
-    with patch("handler.match_product", return_value=MOCK_MATCHED_PRODUCT), patch(
-        "handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND
-    ), patch("handler.load_products_from_dynamodb", return_value=[]):
-        response = handler(
-            http_event({"product_name": "Flawless Finish Foundation"}), None
-        )
-        assert response["statusCode"] == 200
-        print(f"response is {response}")
-        body = json.loads(response["body"])
-        assert body["brand"] == "Charlotte Tilbury"
-        assert body["product_name"] == "Flawless Finish Foundation"
-        assert "product_summary" in body
-        assert "alternatives" in body
+    response = handler(http_event({"product_name": "Flawless Finish Foundation"}), None)
+    assert response["statusCode"] == 200
+    print(f"response is {response}")
+    body = json.loads(response["body"])
+    assert body["brand"] == "Charlotte Tilbury"
+    assert body["product_name"] == "Flawless Finish Foundation"
+    assert "product_summary" in body
+    assert "alternatives" in body
 
 
-def test_http_name_search_returns_not_found_when_no_match():
+def test_http_name_search_returns_not_found_when_no_match(mock_no_match):
     """Name search with unknown product returns Not Found — no guessing."""
-    with patch("handler.match_product", return_value=None), patch(
-        "handler.load_products_from_dynamodb", return_value=[]
-    ):
-        response = handler(http_event({"product_name": "Unknown Product XYZ"}), None)
-        assert response["statusCode"] == 200
-        body = json.loads(response["body"])
-        assert "Not Found" in body["status"]
-        assert "message" in body
+
+    response = handler(http_event({"product_name": "Unknown Product XYZ"}), None)
+    print(f"response is {response}")
+    assert response["statusCode"] == 200
+    body = json.loads(response["body"])
+    assert "Not Found" in body["status"]
+    assert "message" in body
 
 
 def test_http_product_not_found_when_no_match(mock_no_match):
     response = handler(http_event({"image_base64": FAKE_IMAGE}), None)
+    print(response)
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     assert "Not Found" in body["status"]
@@ -199,6 +193,7 @@ def test_s3_event_without_user_profile(mock_match):
     assert response["statusCode"] == 200
     body = json.loads(response["body"])
     summary = body["product_summary"]
+    print(f"summary is {summary}")
     assert summary["personalized"] is False
     assert summary["fit_score"] is None
 
@@ -216,21 +211,23 @@ def test_s3_event_with_user_profile(mock_match):
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 @pytest.fixture
 def mock_match():
-    with patch("handler.s3_client") as mock_s3, patch("handler.textract_client"), patch(
-        "handler.match_product", return_value=MOCK_MATCHED_PRODUCT
-    ), patch("handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND), patch(
-        "handler.load_products_from_dynamodb", return_value=[]
-    ):  # ← add this
-        mock_s3.put_object.return_value = {}
+    with patch(
+        "core.app.handler.match_product", return_value=MOCK_MATCHED_PRODUCT
+    ), patch("core.app.handler.PRODUCTS_BY_BRAND", MOCK_PRODUCTS_BY_BRAND), patch(
+        "core.app.handler.load_products_from_dynamodb", return_value=[]
+    ), patch(
+        "core.app.handler.upload_image_to_s3", return_value="fake-key"
+    ), patch(
+        "core.app.handler.run_textract_and_match", return_value=MOCK_MATCHED_PRODUCT
+    ):
         yield
 
 
 @pytest.fixture
 def mock_no_match():
-    with patch("handler.s3_client") as mock_s3, patch("handler.textract_client"), patch(
-        "handler.match_product", return_value=None
-    ), patch(
-        "handler.load_products_from_dynamodb", return_value=[]
-    ):  # ← add this
-        mock_s3.put_object.return_value = {}
+    with patch("core.app.handler.match_product", return_value=None), patch(
+        "core.app.handler.load_products_from_dynamodb", return_value=[]
+    ), patch("core.app.handler.upload_image_to_s3", return_value="fake-key"), patch(
+        "core.app.handler.run_textract_and_match", return_value=None
+    ):
         yield

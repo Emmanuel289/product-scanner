@@ -64,11 +64,17 @@ export default function App() {
         href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet"
       />
-      <div style={{ minHeight: "100vh", background: "#080808", display: "flex", justifyContent: "center", padding: "0 0 80px 0" }}>
-        <div style={{ width: "100%", maxWidth: 420, padding: "0 16px" }}>
+      <div style={{ minHeight: "150vh", background: "#080808", display: "flex", justifyContent: "center", padding: "0 0 80px 0" }}>
+        <div style={{ width: "100%", maxWidth: 500, padding: "0 16px" }}>
 
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 0 32px" }}>
+
+            {/* Brand */}
+            <div>
+              <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", letterSpacing: -0.5 }}>StyleCast</div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#444", letterSpacing: 2, textTransform: "uppercase" }}>Product Scanner</div>
+            </div>
 
             {/* Back + forward */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -90,12 +96,6 @@ export default function App() {
               >
                 <ArrowRightIcon />
               </button>
-            </div>
-
-            {/* Brand */}
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", letterSpacing: -0.5 }}>StyleCast</div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#444", letterSpacing: 2, textTransform: "uppercase" }}>Product Scanner</div>
             </div>
           </div>
 

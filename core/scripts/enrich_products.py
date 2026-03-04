@@ -20,12 +20,18 @@ import time
 import anthropic
 import boto3
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core", "app"))  # noqa
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # noqa
 
-TABLE_NAME = os.environ.get("PRODUCTS_TABLE", "product-scanner-products")
+from core.app.constants import PRODUCTS_TABLE
+from dotenv import load_dotenv
+
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-table = dynamodb.Table(TABLE_NAME)
-client = anthropic.Anthropic()
+table = dynamodb.Table(PRODUCTS_TABLE)
+load_dotenv("../.env")
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 # ── Prompt ─────────────────────────────────────────────────────────────────────
@@ -61,11 +67,9 @@ Rules:
 
 
 # ── Claude call ────────────────────────────────────────────────────────────────
-
-
 def enrich_product(product: dict) -> dict:
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=512,
         messages=[{"role": "user", "content": build_prompt(product)}],
     )
@@ -111,8 +115,6 @@ def write_enrichment(product_id: str, enrichment: dict):
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
-
-
 def main(dry_run: bool, brand_filter: str):
     products = load_products(brand_filter)
     print(f"Found {len(products)} products to enrich\n")
@@ -143,7 +145,6 @@ def main(dry_run: bool, brand_filter: str):
             print(f"❌ Failed: {e}")
             failed += 1
 
-        # Be polite to the API
         time.sleep(0.5)
 
     print(f"\nDone. {success} enriched, {failed} failed.")
