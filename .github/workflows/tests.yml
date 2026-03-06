@@ -13,7 +13,7 @@ jobs:
           uses: actions/checkout@v3
 
         - name: Install dependencies
-          run:
+          run: |
             cd core
             python -m venv .venv
             uv pip install -r requirements.txt
