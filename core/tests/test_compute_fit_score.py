@@ -1,5 +1,5 @@
-from constants import UserProfile
-from decision_engine import compute_fit_score, generate_decision_summary
+from core.app.constants import UserProfile
+from core.app.decision_engine import compute_fit_score, generate_decision_summary
 
 
 def make_product():

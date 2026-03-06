@@ -1,4 +1,4 @@
-from constants import (
+from core.app.constants import (
     Category,
     CoverageType,
     FinishType,
@@ -9,7 +9,7 @@ from constants import (
     TextureType,
     UserProfile,
 )
-from decision_engine import generate_decision_summary
+from core.app.decision_engine import generate_decision_summary
 
 MOCK_PRODUCT = {
     "skin_types": [SkinType.OILY.value, SkinType.COMBINATION.value],
