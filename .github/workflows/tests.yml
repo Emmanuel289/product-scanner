@@ -20,7 +20,7 @@ jobs:
           run: |
             cd core
             python -m venv .venv
-            uv pip install -r requirements.txt
+            pip install -e .
 
         - name: Run unit tests
           run: pytest -s -vv
