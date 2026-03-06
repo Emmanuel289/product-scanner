@@ -1,0 +1,19 @@
+name: Hello World
+on: [push, pull_request]
+jobs:
+  Hello-World-Job:
+    runs-on:
+      - codebuild-product-scanner-${{ github.run_id }}-${{ github.run_attempt }}
+        image:${{ matrix.os }}
+        instance-size:${{ matrix.size }}
+        fleet:myFleet
+        buildspec-override:true
+    strategy:
+      matrix:
+        include:
+          - os: arm-3.0
+            size: small
+          - os: linux-5.0
+            size: large
+    steps:
+      - run: echo "Hello World!"
