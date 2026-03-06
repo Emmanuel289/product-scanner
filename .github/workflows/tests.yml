@@ -18,7 +18,7 @@ jobs:
 
         - name: Install dependencies
           run: |
-            cd core/tests
+            cd core
             python -m venv .venv
             pip install -r requirements.test.txt
 
