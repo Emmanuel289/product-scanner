@@ -71,7 +71,7 @@ The top-left back and forward arrows let you navigate between the scan screen an
 ![Not found](./assets/scanner_12.png)
 
 ---
-## Testing 
+## Testing
 The app is deployed on Vercel at [product-scanner](https://maximus-product-scanner.vercel.app/). Do try out the user workflows!
 
 ## Local Development

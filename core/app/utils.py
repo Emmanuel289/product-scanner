@@ -5,14 +5,14 @@ from base64 import b64decode
 from botocore.exceptions import ClientError
 from random import sample
 from uuid import uuid4
-from constants import (
+from core.app.constants import (
     BRAND_ALIASES,
     CONFIDENCE_THRESHOLD,
     PRODUCTS_TABLE,
     IN_MEMORY_PRODUCTS,
     UserProfile,
 )
-from decision_engine import generate_decision_summary
+from core.app.decision_engine import generate_decision_summary
 from typing import Dict, List, Optional, Set
 
 logging.basicConfig(
@@ -24,7 +24,6 @@ logging.basicConfig(
 app_logger = logging.getLogger(__name__)
 
 
-# ----- Helper functions ----- #
 def normalize_text(text: str, aliases: dict) -> str:
     text = text.lower()
     for alias, canonical in aliases.items():

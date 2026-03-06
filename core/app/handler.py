@@ -1,7 +1,6 @@
-import boto3
 import json
-from constants import BRAND_ALIASES, SCANNER_BUCKET, STOPWORDS
-from utils import (
+from core.app.constants import BRAND_ALIASES, SCANNER_BUCKET, STOPWORDS
+from core.app.utils import (
     app_logger,
     cors_headers,
     build_products,

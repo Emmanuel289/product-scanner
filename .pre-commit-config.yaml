@@ -9,4 +9,4 @@ repos:
     rev: 26.1.0
     hooks:
       - id: black
-        args: [--config=pyproject.toml]
+        args: [--config=core/pyproject.toml]

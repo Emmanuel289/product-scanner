@@ -1,6 +1,10 @@
 import json
+import sys
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from core.app.handler import handler as lambda_handler
 
 app = FastAPI()

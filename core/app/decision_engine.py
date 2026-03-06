@@ -1,6 +1,12 @@
 from typing import Dict, List, Optional, Tuple
 
-from constants import FitScoreThreshold, Outcome, RiskLevel, SkinType, UserProfile
+from core.app.constants import (
+    FitScoreThreshold,
+    Outcome,
+    RiskLevel,
+    SkinType,
+    UserProfile,
+)
 
 
 def extract_product_attrs(product: Dict) -> Tuple[List]:

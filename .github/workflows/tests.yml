@@ -1,0 +1,22 @@
+name: "tests"
+
+on:
+    pull_request
+
+
+jobs:
+    run-tests:
+        name: "Run tests"
+        runs-on: "ubuntu-22.04"
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v3
+
+        - name: Install dependencies
+          run:
+            cd core
+            python -m venv .venv
+            uv pip install -r requirements.txt
+
+        - name: Run unit tests
+          run: pytest -s -vv
