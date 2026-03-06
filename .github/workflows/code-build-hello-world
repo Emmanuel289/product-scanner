@@ -1,5 +1,5 @@
 name: Hello World
-on: [push, pull_request]
+on: [push]
 jobs:
   Hello-World-Job:
     runs-on:
