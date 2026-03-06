@@ -211,8 +211,6 @@ def build_result(
         }
         for alt in alternatives
     ]
-
-    print(f"decision summary is {decision_summary}")
     return {
         "status": decision_summary["outcome"],
         "brand": matched_product["brand"],
