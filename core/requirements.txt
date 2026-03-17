@@ -1,5 +1,6 @@
 boto3
 fastapi[standard]
+sqlalchemy
 uvicorn
 pydantic
 anthropic

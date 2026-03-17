@@ -2,21 +2,63 @@ import { useState } from "react";
 import ScanStep from "./components/ScanStep";
 import LoadingState from "./components/LoadingState";
 import ResultView from "./components/ResultView";
+import Signup from "./components/Signup";
+import Login from "./components/Login";
 import { ArrowLeftIcon, ArrowRightIcon } from "./components/icons/Icons";
+import { API_URL } from "./constants";
 
 export default function App() {
+  const [authPhase, setAuthPhase] = useState("login"); // "login" | "signup" | "app"
+  const [currentUser, setCurrentUser] = useState(null); // stores login response data
+  const [serverError, setServerError] = useState(null);
+
   const [phase, setPhase] = useState("scan");
   const [result, setResult] = useState(null);
   const [imageBase64, setImageBase64] = useState(null);
-  // history only tracks scan ↔ result — loading is transient
   const [history, setHistory] = useState(["scan"]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  const navigateTo = (newPhase) => {
-    if (newPhase === "loading") {
-      setPhase("loading");
-      return;
+  // ── Auth handlers ────────────────────────────────────────────────────────────
+  const handleLoginSuccess = (data) => {
+    setCurrentUser(data);
+    setAuthPhase("app");
+  };
+
+  const handleLogoutSuccess = () => {
+    setCurrentUser(null);
+    setAuthPhase("login");
+  };
+
+  const handleLogout = async () => {
+    if (!currentUser) {
+      setAuthPhase("login");
     }
+
+    try {
+      const res = await fetch(`${API_URL}/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentUser),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setServerError(data.detail || "Logout failed. Check your connection.")
+        return;
+      }
+      setServerError(null);
+      handleLogoutSuccess();
+    } catch (error) {
+      setServerError(`Failed to sign out the user. ${error}`);
+    }
+  };
+
+  const handleSignupSuccess = () => {
+    setAuthPhase("app");
+  };
+
+  // ── Scanner navigation ───────────────────────────────────────────────────────
+  const navigateTo = (newPhase) => {
+    if (newPhase === "loading") { setPhase("loading"); return; }
     const newHistory = [...history.slice(0, historyIndex + 1), newPhase];
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
@@ -47,57 +89,113 @@ export default function App() {
   const navBtnStyle = (enabled) => ({
     background: "transparent",
     border: `1px solid ${enabled ? "#2a2a2a" : "transparent"}`,
-    borderRadius: 8,
-    padding: "6px 8px",
+    borderRadius: 8, padding: "6px 8px",
     color: enabled ? "#666" : "#2a2a2a",
     cursor: enabled ? "pointer" : "default",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    display: "flex", alignItems: "center", justifyContent: "center",
     transition: "all 0.15s ease",
     pointerEvents: enabled ? "auto" : "none",
   });
 
+  // ── Font link shared across all pages ────────────────────────────────────────
+  const fonts = (
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  );
+
+  // ── Auth screens ─────────────────────────────────────────────────────────────
+  if (authPhase === "login") {
+    return (
+      <>
+        {fonts}
+        <Login
+          onSuccess={handleLoginSuccess}
+          onGoToSignup={() => setAuthPhase("signup")}
+        />
+      </>
+    );
+  }
+
+  if (authPhase === "signup") {
+    return (
+      <>
+        {fonts}
+        <Signup
+          onSuccess={handleSignupSuccess}
+          onGoToLogin={() => setAuthPhase("login")}
+        />
+      </>
+    );
+  }
+
+  // ── Main app ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <link
-        href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-      <div style={{ minHeight: "150vh", background: "#080808", display: "flex", justifyContent: "center", padding: "0 0 80px 0" }}>
+      {fonts}
+      <div style={{ minHeight: "100vh", background: "#080808", display: "flex", justifyContent: "center", padding: "0 0 80px 0" }}>
         <div style={{ width: "100%", maxWidth: 500, padding: "0 16px" }}>
 
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 0 32px" }}>
-
-            {/* Brand */}
             <div>
               <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 22, color: "#fff", letterSpacing: -0.5 }}>StyleCast</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#444", letterSpacing: 2, textTransform: "uppercase" }}>Product Scanner</div>
             </div>
 
-            {/* Back + forward */}
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Logged in user indicator */}
+              {currentUser?.client?.username && (
+                <div style={{
+                  color: "#444", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+                  borderRight: "1px solid #1e1e1e", paddingRight: 12, marginRight: 4,
+                }}>
+                  {currentUser.client.username}
+                </div>
+              )}
+
+              {/* Sign out */}
               <button
-                onClick={goBack}
-                disabled={!canGoBack}
-                style={navBtnStyle(canGoBack)}
-                onMouseEnter={e => { if (canGoBack) e.currentTarget.style.borderColor = "#444"; }}
-                onMouseLeave={e => { if (canGoBack) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                onClick={() => { handleLogout(); handleReset(); }}
+                style={{
+                  background: "transparent", border: "none",
+                  color: "#333", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
+                  cursor: "pointer", padding: "4px 0",
+                  transition: "color 0.15s ease",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = "#666"}
+                onMouseLeave={e => e.currentTarget.style.color = "#333"}
               >
-                <ArrowLeftIcon />
+                Sign out
               </button>
-              <button
-                onClick={goForward}
-                disabled={!canGoForward}
-                style={navBtnStyle(canGoForward)}
-                onMouseEnter={e => { if (canGoForward) e.currentTarget.style.borderColor = "#444"; }}
-                onMouseLeave={e => { if (canGoForward) e.currentTarget.style.borderColor = "#2a2a2a"; }}
-              >
-                <ArrowRightIcon />
-              </button>
+
+              {/* Back + forward */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 4 }}>
+                <button
+                  onClick={goBack} disabled={!canGoBack} style={navBtnStyle(canGoBack)}
+                  onMouseEnter={e => { if (canGoBack) e.currentTarget.style.borderColor = "#444"; }}
+                  onMouseLeave={e => { if (canGoBack) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                >
+                  <ArrowLeftIcon />
+                </button>
+                <button
+                  onClick={goForward} disabled={!canGoForward} style={navBtnStyle(canGoForward)}
+                  onMouseEnter={e => { if (canGoForward) e.currentTarget.style.borderColor = "#444"; }}
+                  onMouseLeave={e => { if (canGoForward) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                >
+                  <ArrowRightIcon />
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Error banner */}
+          {serverError && (
+            <div style={{ background: "#1a0a0a", border: "1px solid #3a1a1a", borderRadius: 8, padding: "10px 14px", marginBottom: 20, color: "#f87171", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
+              {serverError}
+            </div>
+          )}
 
           {/* Step indicator */}
           {phase !== "result" && (
