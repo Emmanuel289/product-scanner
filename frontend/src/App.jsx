@@ -1,90 +1,35 @@
-import { useState } from "react";
+import { useAuth } from "./hooks/useAuth";
+import { useScanner } from "./hooks/useScanner";
 import ScanStep from "./components/ScanStep";
 import LoadingState from "./components/LoadingState";
 import ResultView from "./components/ResultView";
 import Signup from "./components/Signup";
 import Login from "./components/Login";
 import { ArrowLeftIcon, ArrowRightIcon } from "./components/icons/Icons";
-import { API_URL } from "./constants";
 
 export default function App() {
-  const [authPhase, setAuthPhase] = useState("login"); // "login" | "signup" | "app"
-  const [currentUser, setCurrentUser] = useState(null); // stores login response data
-  const [serverError, setServerError] = useState(null);
+  const {
+    currentUser,
+    authPhase,
+    setAuthPhase,
+    authError,
+    handleAuthSuccess,
+    handleLogout,
+  } = useAuth();
 
-  const [phase, setPhase] = useState("scan");
-  const [result, setResult] = useState(null);
-  const [imageBase64, setImageBase64] = useState(null);
-  const [history, setHistory] = useState(["scan"]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const {
+    phase,
+    result,
+    imageBase64,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
+    handleResult,
+    handleLoading,
+    handleReset,
+  } = useScanner();
 
-  // ── Auth handlers ────────────────────────────────────────────────────────────
-  const handleLoginSuccess = (data) => {
-    setCurrentUser(data);
-    setAuthPhase("app");
-  };
-
-  const handleLogoutSuccess = () => {
-    setCurrentUser(null);
-    setAuthPhase("login");
-  };
-
-  const handleLogout = async () => {
-    if (!currentUser) {
-      setAuthPhase("login");
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(currentUser),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setServerError(data.detail || "Logout failed. Check your connection.")
-        return;
-      }
-      setServerError(null);
-      handleLogoutSuccess();
-    } catch (error) {
-      setServerError(`Failed to sign out the user. ${error}`);
-    }
-  };
-
-  const handleSignupSuccess = () => {
-    setAuthPhase("app");
-  };
-
-  // ── Scanner navigation ───────────────────────────────────────────────────────
-  const navigateTo = (newPhase) => {
-    if (newPhase === "loading") { setPhase("loading"); return; }
-    const newHistory = [...history.slice(0, historyIndex + 1), newPhase];
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    setPhase(newPhase);
-  };
-
-  const goBack = () => {
-    if (historyIndex === 0) return;
-    const newIndex = historyIndex - 1;
-    setHistoryIndex(newIndex);
-    setPhase(history[newIndex]);
-  };
-
-  const goForward = () => {
-    if (historyIndex >= history.length - 1) return;
-    const newIndex = historyIndex + 1;
-    setHistoryIndex(newIndex);
-    setPhase(history[newIndex]);
-  };
-
-  const handleResult = (data, b64) => { setResult(data); setImageBase64(b64); navigateTo("result"); };
-  const handleLoading = (v) => { if (v) navigateTo("loading"); };
-  const handleReset = () => { setResult(null); setImageBase64(null); setHistory(["scan"]); setHistoryIndex(0); setPhase("scan"); };
-
-  const canGoBack = historyIndex > 0 && phase !== "loading";
-  const canGoForward = historyIndex < history.length - 1 && phase !== "loading";
 
   const navBtnStyle = (enabled) => ({
     background: "transparent",
@@ -111,7 +56,7 @@ export default function App() {
       <>
         {fonts}
         <Login
-          onSuccess={handleLoginSuccess}
+          onSuccess={handleAuthSuccess}
           onGoToSignup={() => setAuthPhase("signup")}
         />
       </>
@@ -123,7 +68,7 @@ export default function App() {
       <>
         {fonts}
         <Signup
-          onSuccess={handleSignupSuccess}
+          onSuccess={handleAuthSuccess}
           onGoToLogin={() => setAuthPhase("login")}
         />
       </>
@@ -145,7 +90,6 @@ export default function App() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Logged in user indicator */}
               {currentUser?.client?.username && (
                 <div style={{
                   color: "#444", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
@@ -157,7 +101,7 @@ export default function App() {
 
               {/* Sign out */}
               <button
-                onClick={() => { handleLogout(); handleReset(); }}
+                onClick={() => { handleLogout(handleReset); }}
                 style={{
                   background: "transparent", border: "none",
                   color: "#333", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
@@ -191,9 +135,9 @@ export default function App() {
           </div>
 
           {/* Error banner */}
-          {serverError && (
+          {authError && (
             <div style={{ background: "#1a0a0a", border: "1px solid #3a1a1a", borderRadius: 8, padding: "10px 14px", marginBottom: 20, color: "#f87171", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>
-              {serverError}
+              {authError}
             </div>
           )}
 
