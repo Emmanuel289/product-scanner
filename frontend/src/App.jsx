@@ -27,11 +27,13 @@ export default function App() {
   const handleLogoutSuccess = () => {
     setCurrentUser(null);
     setAuthPhase("login");
+    handleReset();
   };
 
   const handleLogout = async () => {
     if (!currentUser) {
       setAuthPhase("login");
+      return;
     }
 
     try {
@@ -157,7 +159,7 @@ export default function App() {
 
               {/* Sign out */}
               <button
-                onClick={() => { handleLogout(); handleReset(); }}
+                onClick={() => { handleLogout(); }}
                 style={{
                   background: "transparent", border: "none",
                   color: "#333", fontFamily: "'DM Sans', sans-serif", fontSize: 12,
