@@ -1,3 +1,10 @@
+locals {
+  docker_file_hash = filemd5("${path.module}/../core/Dockerfile")
+  source_hash      = filemd5("${path.module}/../core/app/handler.py")
+  scripts_dir      = "${path.module}/../core/scripts"
+  image_tag        = md5("${local.docker_file_hash}-${local.source_hash}")
+}
+
 data "aws_caller_identity" "current" {}
 
 # --- S3 Bucket for uploads --- #
@@ -18,26 +25,26 @@ resource "aws_ecr_repository" "lambda_repo" {
 }
 
 # --- Build and push the lambda image --- #
-resource "null_resource" "build_and_push_image" {
+resource "terraform_data" "build_and_push_image" {
 
-  triggers = {
-    dockerfile_hash = filemd5("${path.module}/../core/Dockerfile")
-    source_hash     = filemd5("${path.module}/../core/app/handler.py")
-  }
+  triggers_replace = [
+    local.docker_file_hash,
+    local.source_hash
+  ]
 
   provisioner "local-exec" {
-    command = "aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${aws_ecr_repository.lambda_repo.repository_url} && docker build -t ${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag} --platform linux/amd64 --provenance false --no-cache ${path.module}/../core && docker push ${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag}"
-
+    working_dir = local.scripts_dir
+    interpreter = ["bash", "-c"]
+    command     = "AWS_MODE=local IMAGE_TAG=${local.image_tag} REPO_URL=${aws_ecr_repository.lambda_repo.repository_url} AWS_REGION=${var.region} ./build_lambda_image.sh"
   }
 
   depends_on = [aws_ecr_repository.lambda_repo]
 }
-
 # --- Lambda container --- #
 resource "aws_lambda_function" "scanner" {
   function_name = "product-scanner"
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}:${var.image_tag}"
+  image_uri     = "${aws_ecr_repository.lambda_repo.repository_url}:${local.image_tag}"
   role          = aws_iam_role.lambda_role.arn
   timeout       = 30
   memory_size   = 1024
@@ -52,7 +59,7 @@ resource "aws_lambda_function" "scanner" {
     }
   }
 
-  depends_on = [null_resource.build_and_push_image]
+  depends_on = [terraform_data.build_and_push_image]
 }
 
 # --- S3 Trigger ---- #
