@@ -13,32 +13,12 @@ fi
 AWS_REGION="${AWS_REGION}"
 IMAGE_TAG="${IMAGE_TAG}"
 
-# LocalStack vs real AWS mode
-if [ "${AWS_MODE:-}" = "local" ]; then
-    echo "Running in LocalStack mode..."
-    LOCALSTACK_ENDPOINT="http://localhost:4566"
-    LAMBDA_REPOSITORY_URL="localhost:4566/$(basename "$REPO_URL")"
-    ECR_REGISTRY=$(echo "$REPO_URL" | cut -d'/' -f1)
-
-    # Use awslocal if available, otherwise fall back to aws --endpoint-url
-    if command -v awslocal &> /dev/null; then
-        AWS_CMD="awslocal"
-    else
-        AWS_CMD="aws --endpoint-url=$LOCALSTACK_ENDPOINT"
-    fi
-
-    echo "Login to LocalStack ECR..."
-    $AWS_CMD ecr get-login-password --region "$AWS_REGION" | \
-        docker login --username AWS --password-stdin "$ECR_REGISTRY"
-else
-    echo "Running in AWS mode..."
-    LAMBDA_REPOSITORY_URL="${REPO_URL}"
-    AWS_CMD="aws"
-
-    echo "Login to AWS ECR..."
-    $AWS_CMD ecr get-login-password --region "$AWS_REGION" | \
-        docker login --username AWS --password-stdin "$LAMBDA_REPOSITORY_URL"
-fi
+# Login to ECR
+LAMBDA_REPOSITORY_URL="${REPO_URL}"
+AWS_CMD="aws"
+echo "Login to AWS ECR..."
+aws ecr get-login-password --region "$AWS_REGION" | \
+    docker login --username AWS --password-stdin "$LAMBDA_REPOSITORY_URL"
 
 echo "Building lambda image..."
 docker build -t "$REPO_URL:$IMAGE_TAG" \

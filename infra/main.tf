@@ -1,8 +1,8 @@
 locals {
-  docker_file_hash = filemd5("${path.module}/../core/Dockerfile")
-  source_hash      = filemd5("${path.module}/../core/app/handler.py")
-  scripts_dir      = "${path.module}/../core/scripts"
-  image_tag        = md5("${local.docker_file_hash}-${local.source_hash}")
+  dockerfile_hash = filemd5("${path.module}/../core/Dockerfile")
+  source_hash     = filemd5("${path.module}/../core/app/handler.py")
+  scripts_dir     = "${path.module}/../core/scripts"
+  image_tag       = md5("${local.dockerfile_hash}-${local.source_hash}")
 }
 
 data "aws_caller_identity" "current" {}
@@ -27,10 +27,10 @@ resource "aws_ecr_repository" "lambda_repo" {
 # --- Build and push the lambda image --- #
 resource "terraform_data" "build_and_push_image" {
 
-  triggers_replace = [
-    local.docker_file_hash,
-    local.source_hash
-  ]
+  triggers_replace = {
+    dockerfile_hash = local.dockerfile_hash,
+    source_hash     = local.source_hash
+  }
 
   provisioner "local-exec" {
     working_dir = local.scripts_dir
