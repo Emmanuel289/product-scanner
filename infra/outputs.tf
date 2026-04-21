@@ -18,3 +18,10 @@ output "region" {
 output "lambda_repository_url" {
   value = aws_ecr_repository.lambda_repo.repository_url
 }
+
+output "codebuild_arn" {
+  value = module.codebuild_codepipeline.codebuild_arn
+}
+output "codepipeline_arn" {
+  value = module.codebuild_codepipeline.codepipeline_arn
+}

@@ -74,3 +74,12 @@ resource "aws_s3_bucket_notification" "trigger" {
 
   depends_on = [aws_lambda_permission.allow_s3]
 }
+
+
+# ---- Code build and Codepipeline --- #
+module "codebuild_codepipeline" {
+  source              = "./codepipeline"
+  codebuild_log_group = var.codebuild_log_group
+  github_repo_id      = var.github_repo_id
+  github_branch       = var.github_branch
+}
