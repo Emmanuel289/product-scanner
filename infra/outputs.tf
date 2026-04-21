@@ -10,3 +10,11 @@ output "lambda_function_arn" {
 output "api_url" {
   value = "${aws_api_gateway_stage.prod.invoke_url}/scan"
 }
+
+output "region" {
+  value = var.region
+}
+
+output "lambda_repository_url" {
+  value = aws_ecr_repository.lambda_repo.repository_url
+}

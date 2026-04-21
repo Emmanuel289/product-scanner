@@ -4,3 +4,4 @@ sqlalchemy
 uvicorn
 pydantic
 anthropic
+pre-commit
