@@ -19,13 +19,11 @@ If a product cannot be identified without ambiguity, product scanner says so rat
 
 ## Supported products
 
-The app currently covers 24 products across 3 brands:
+The app currently covers 24 products across 3 brands with upcoming support for an expanded list of brands:
 
 - **Dior** — foundations, serums, moisturisers, lip products
 - **Rare Beauty** — foundations, tinted moisturisers, lip products, primers
 - **La Roche-Posay** — cleansers, moisturisers, serums, sunscreen
-
-The full list of supported products can be found [here](https://docs.google.com/spreadsheets/d/1nCdNNC2St6VZhPKAihXhKjWCIZtfRBiIKh0OJhJ_-v0/edit?gid=0#gid=0)
 
 ---
 
