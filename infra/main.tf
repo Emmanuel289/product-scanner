@@ -35,7 +35,7 @@ resource "terraform_data" "build_and_push_image" {
   provisioner "local-exec" {
     working_dir = local.scripts_dir
     interpreter = ["bash", "-c"]
-    command     = "IMAGE_TAG=${local.image_tag} REPO_URL=${aws_ecr_repository.lambda_repo.repository_url} AWS_REGION=${var.region} ./build_lambda_image.sh"
+    command     = "IMAGE_TAG=${local.image_tag} REPO_URL=${aws_ecr_repository.lambda_repo.repository_url} AWS_REGION=${var.region} AWS_PROFILE=${var.profile} ./build_lambda_image.sh"
   }
 
   depends_on = [aws_ecr_repository.lambda_repo]
