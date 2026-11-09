@@ -4,13 +4,8 @@ phases:
   install:
     commands:
       #
-  pre_build:
-    commands:
-      - echo Nothing to do in the pre_build phase...
   build:
     commands:
-      - echo Build started on `date`
+      - echo Starting build at `date +'%y-%m-%d %H:%M:%S'`
       - ./core/scripts/build_lambda_image.sh
-  post_build:
-    commands:
-      - echo Build completed on `date`
+      - echo Completed build at `date +'%y-%m-%d %H:%M:%S'`
