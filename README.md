@@ -33,40 +33,40 @@ The app currently covers 24 products across 3 brands with upcoming support for a
 
 - Take a photo with your device's camera or upload a saved photo from your gallery.
 
-![Upload product image](./assets/scanner_1.png)
+![Upload product image](./assets/sample-images/scanner_1.png)
 
 - Tap **Scan Product** on the page.
 
-![Scan product1](./assets/scanner_3.png)
+![Scan product1](./assets/sample-images/scanner_3.png)
 
 The app uploads the image, runs text extraction, and matches it against the product database within seconds.
 
-![Scan product2](./assets/scanner_4.png)
+![Scan product2](./assets/sample-images/scanner_4.png)
 
 ### 2 - Personalise with a skin type
 Tap any skin type on the product information page to generate a personalised fit score (0–100) alongside a rationale explaining why.
 
-![Personalize1](./assets/scanner_5.png)
-![Personalize2](./assets/scanner_6.png)
-![Personalize1](./assets/scanner_8.png)
+![Personalize1](./assets/sample-images/scanner_5.png)
+![Personalize2](./assets/sample-images/scanner_6.png)
+![Personalize1](./assets/sample-images/scanner_8.png)
 
 ### 3 - Search by name
 Click **Can't scan? Search by name**, type at least 3 characters, and results appear instantly.
 
-![Search by name](./assets/scanner_9.png)
+![Search by name](./assets/sample-images/scanner_9.png)
 
 ---
 
 ### 4 - Product Not Found
 If the product isn't in the database, the app returns information indicating that the product could not be detected, similar to the screenshot below:
 
-![Not found](./assets/scanner_10.png)
+![Not found](./assets/sample-images/scanner_10.png)
 
 ## Navigation
 
 The top-left back and forward arrows let you navigate between the scan screen and your last result without rescanning. Going back and then scanning a new product clears the forward history.
 
-![Not found](./assets/scanner_12.png)
+![Not found](./assets/sample-images/scanner_12.png)
 
 ---
 ## Testing
