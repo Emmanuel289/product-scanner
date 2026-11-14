@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { API_URL } from "../constants";
+import { useState, useEffect } from "react";
+import { signIn, fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
 
 const inputStyle = {
   width: "100%",
@@ -28,11 +28,14 @@ const labelStyle = {
 function SuccessBanner({ username, onDone }) {
   const [fading, setFading] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     const fadeTimer = setTimeout(() => setFading(true), 1800);
-    const doneTimer = setTimeout(() => onDone(), 2400);
-    return () => { clearTimeout(fadeTimer); clearTimeout(doneTimer); };
-  }, []);
+    const doneTimer = setTimeout(() => onDone?.(), 2400);
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(doneTimer);
+    };
+  }, [onDone]);
 
   return (
     <div style={{
@@ -58,7 +61,7 @@ function SuccessBanner({ username, onDone }) {
           fontSize: 24,
           marginBottom: 8,
         }}>
-          Welcome back{username ? `, ${username}` : ""}
+          {`Welcome ${username ? username : ""}`}
         </div>
         <div style={{
           color: "#555",
@@ -72,65 +75,139 @@ function SuccessBanner({ username, onDone }) {
   );
 }
 
-export default function LoginPage({ onSuccess, onGoToSignup }) {
-  const [form, setForm] = useState({ identifier: "", password: "" });
+export default function LoginPage({ onSuccess, onGoToSignup, onNeedsConfirmation }) {
+  const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState(null);
+  const [authData, setAuthData] = useState(null);
   const [focusedField, setFocusedField] = useState(null);
 
-  const validate = () => {
+  const validateFormInputs = () => {
     const e = {};
-    if (!form.identifier.trim()) e.identifier = "Username or email is required";
-    if (!form.password) e.password = "Password is required";
+    const email = form.email;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      e.email = "Please enter a valid email address";
+    }
+
+    if (!form.password) {
+      e.password = "Password is required";
+    } else if (form.password.length < 8) {
+      e.password = "Password must be at least 8 characters";
+    }
+
     return e;
   };
 
-  const handleSubmit = async () => {
+  const generateAuthErrorMessage = (error) => {
+    switch (error?.name) {
+      case "UserNotFoundException":
+        return "The provided account does not exist. Please sign up";
+
+      case "NotAuthorizedException":
+        return "Sign in failed. Please verify the password.";
+
+      case "UserNotConfirmedException":
+        return "Your account is not verified yet. Please confirm your email code.";
+
+      case "PasswordResetRequiredException":
+        return "Password reset required. Please reset your password.";
+
+      case "TooManyRequestsException":
+      case "LimitExceededException":
+        return "Too many attempts. Please wait a moment and try again.";
+
+      default:
+        return error?.message || "Unable to sign in. Please try again.";
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+
     setServerError(null);
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+
+    const validationErrors = validateFormInputs();
+
+    if (Object.keys(validationErrors).length) {
+      console.log(validationErrors)
+      setErrors(validationErrors);
+      return;
+    }
+
     setErrors({});
     setSubmitting(true);
 
-    // Detect whether identifier is an email or username
-    const isEmail = form.identifier.includes("@");
-    const payload = {
-      [isEmail ? "email" : "username"]: form.identifier,
-      password: form.password,
-    };
+    const email = form.email.trim();
+    console.log(`email is ${email}`)
+
     try {
-      const res = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const { isSignedIn, nextStep } = await signIn({
+        username: email,
+        password: form.password,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setServerError(data.detail || "Login failed. Check your credentials.");
+
+      if (isSignedIn) {
+        const session = await fetchAuthSession();
+
+        const idToken = session.tokens?.idToken?.toString();
+        const { "custom:display_username": authUsername } = await fetchUserAttributes();
+
+        if (!idToken) {
+          throw new Error("Authentication succeeded but no ID token was returned.");
+        }
+
+        const authData = {
+          username: authUsername,
+          token: idToken,
+        };
+
+        setLoggedInUser(authUsername);
+        setAuthData(authData);
+        setShowSuccess(true);
+
         return;
       }
-      setLoggedInUser(data.client?.username || null);
-      setShowSuccess(true);
-      // Pass the token along to the parent for future authenticated requests
-      onSuccess?.(data);
-    } catch {
-      setServerError("Failed to authenticate the user. Sign up instead");
+
+      // Handle intermediate Cognito sign-in steps
+      switch (nextStep?.signInStep) {
+        case "CONFIRM_SIGN_UP":
+          onNeedsConfirmation?.(username);
+          break;
+
+        case "RESET_PASSWORD":
+          setServerError("Your password must be reset before signing in.");
+          break;
+
+        default:
+          setServerError(`Additional verification required: ${nextstep?.signInStep || "Unknown"}`);
+      }
+
+    } catch (error) {
+      setServerError(generateAuthErrorMessage(error));
+      setAuthData(null)
     } finally {
       setSubmitting(false);
     }
   };
 
   const fields = [
-    { key: "identifier", label: "Username or Email", type: "text", placeholder: "you@example.com or skincaregeek" },
-    { key: "password", label: "Password", type: "password", placeholder: "Your password" },
+    { key: "email", label: "Email", type: "text", placeholder: "you@example.com or skincaregeek", autoComplete: "username" },
+    { key: "password", label: "Password", type: "password", placeholder: "Your password", autoComplete: "current-password" },
   ];
 
   return (
     <>
-      {showSuccess && <SuccessBanner username={loggedInUser} onDone={onSuccess} />}
+      {showSuccess && (
+        <SuccessBanner
+          username={loggedInUser}
+          onDone={() => onSuccess?.(authData)}
+        />
+      )}
 
       <style>{`
         @keyframes slideUp {
@@ -150,7 +227,7 @@ export default function LoginPage({ onSuccess, onGoToSignup }) {
               Product Scanner
             </div>
             <div style={{ color: "#fff", fontFamily: "'DM Serif Display', serif", fontSize: 30, marginBottom: 8 }}>
-              Welcome back
+              Welcome
             </div>
             <div style={{ color: "#555", fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>
               Sign in to access your personalised scanner.
@@ -158,8 +235,11 @@ export default function LoginPage({ onSuccess, onGoToSignup }) {
           </div>
 
           {/* Card */}
-          <div style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 20, padding: 28 }}>
-
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            style={{ background: "#0d0d0d", border: "1px solid #1e1e1e", borderRadius: 20, padding: 28 }}
+          >
             {serverError && (
               <div style={{
                 background: "rgba(239,68,68,0.08)",
@@ -173,17 +253,21 @@ export default function LoginPage({ onSuccess, onGoToSignup }) {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {fields.map(({ key, label, type, placeholder }) => (
+              {fields.map(({ key, label, type, placeholder, autoComplete }) => (
                 <div key={key}>
                   <label style={labelStyle}>{label}</label>
                   <input
                     type={type}
                     placeholder={placeholder}
+                    autoComplete={autoComplete}
                     value={form[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm((f) => ({ ...f, [key]: val }));
+                      if (errors[key]) setErrors((prev) => ({ ...prev, [key]: null }));
+                    }}
                     onFocus={() => setFocusedField(key)}
                     onBlur={() => setFocusedField(null)}
-                    onKeyDown={e => e.key === "Enter" && handleSubmit()}
                     style={{
                       ...inputStyle,
                       borderColor: errors[key] ? "rgba(239,68,68,0.5)" : focusedField === key ? "#6366f1" : "#2a2a2a",
@@ -199,7 +283,7 @@ export default function LoginPage({ onSuccess, onGoToSignup }) {
             </div>
 
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={submitting}
               style={{
                 width: "100%", marginTop: 24,
@@ -212,12 +296,12 @@ export default function LoginPage({ onSuccess, onGoToSignup }) {
                 transition: "all 0.15s ease",
                 letterSpacing: 0.5,
               }}
-              onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = "rgba(99,102,241,0.25)"; }}
-              onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
+              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = "rgba(99,102,241,0.25)"; }}
+              onMouseLeave={(e) => { if (!submitting) e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
             >
               {submitting ? "Signing in…" : "Sign in →"}
             </button>
-          </div>
+          </form>
 
           {/* Footer link */}
           <div style={{ textAlign: "center", marginTop: 20, color: "#444", fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>

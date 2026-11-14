@@ -1,35 +1,46 @@
 variable "region" {
   type        = string
   description = "AWS region to deploy to"
-  default     = "us-east-1"
 }
 
 variable "profile" {
   type        = string
   description = "AWS profile to use"
-  default     = "default"
 }
 
 variable "image_tag" {
   type        = string
   description = "Image tag for image in ECR repo to be used for lambda invocation"
-  default     = "latest"
 }
 
 variable "codebuild_log_group" {
   type        = string
   description = "The log group for storing CodeBuild logs"
-  default     = "codebuild-logs"
 }
 
 variable "github_repo_id" {
   type        = string
   description = "The Github repo to use as a source for codebuild"
-  default     = "Emmanuel289/product-scanner"
 }
 
 variable "github_branch" {
   type        = string
   description = "The Github branch name for configuring CodeBuild"
-  default     = "main"
+}
+
+
+variable "cognito_user_pool_name" {
+  type        = string
+  description = "The Cognito userpool for authorizing users"
+}
+
+
+variable "custom_domain" {
+  type        = string
+  description = "The custom domain name for sign up and sign in pages"
+}
+
+variable "call_back_urls" {
+  type        = list(string)
+  description = "List of allowed callback urls for the identity providers"
 }

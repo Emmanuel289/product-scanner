@@ -4,16 +4,25 @@ import ScanStep from "./components/ScanStep";
 import LoadingState from "./components/LoadingState";
 import ResultView from "./components/ResultView";
 import Signup from "./components/Signup";
+import ConfirmSignUp from "./components/ConfirmSignUp";
 import Login from "./components/Login";
 import { ArrowLeftIcon, ArrowRightIcon } from "./components/icons/Icons";
+import { Amplify } from "aws-amplify";
+import { AMPLIFY_OUTPUTS } from "./constants";
+
+Amplify.configure(AMPLIFY_OUTPUTS);
 
 export default function App() {
   const {
     currentUser,
+    pendingUsername,
     authPhase,
     setAuthPhase,
     authError,
     handleAuthSuccess,
+    handleConfirmSignup,
+    handleSignupComplete,
+    handleConfirmationSuccess,
     handleLogout,
   } = useAuth();
 
@@ -51,6 +60,8 @@ export default function App() {
   );
 
   // ── Auth screens ─────────────────────────────────────────────────────────────
+
+  // Login
   if (authPhase === "login") {
     return (
       <>
@@ -63,16 +74,31 @@ export default function App() {
     );
   }
 
+  // Signup
   if (authPhase === "signup") {
     return (
       <>
         {fonts}
         <Signup
-          onSuccess={handleAuthSuccess}
+          onNeedsConfirmation={handleConfirmSignup}
+          onSuccess={handleSignupComplete}
           onGoToLogin={() => setAuthPhase("login")}
         />
       </>
     );
+  }
+
+  // Confirm Signup
+  if (authPhase === "confirmsignup") {
+    return (
+      <>
+        {fonts}
+        <ConfirmSignUp
+          userName={pendingUsername}
+          onSuccess={handleConfirmationSuccess}
+        />
+      </>
+    )
   }
 
   // ── Main app ─────────────────────────────────────────────────────────────────

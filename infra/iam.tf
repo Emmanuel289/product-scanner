@@ -74,3 +74,58 @@ resource "aws_lambda_permission" "apigw" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.scanner_api.execution_arn}/*/*"
 }
+
+
+resource "aws_cognito_user_pool" "product_scanner" {
+  name   = var.cognito_user_pool_name
+  region = var.region
+
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  schema {
+    name                = "display_username"
+    attribute_data_type = "String"
+    mutable             = true
+    required            = false
+    string_attribute_constraints {
+      min_length = 5
+      max_length = 16
+    }
+  }
+  password_policy {
+    minimum_length  = 8
+    require_numbers = true
+    require_symbols = true
+  }
+  admin_create_user_config {
+    allow_admin_create_user_only = false
+    invite_message_template {
+      email_message = "Your username is {username} and password is {####}"
+      sms_message   = "Your username is {username} and password is {####}"
+      email_subject = "Your Product Scanner Account has been created"
+    }
+  }
+}
+
+
+resource "aws_cognito_user_pool_client" "product_scanner" {
+  name                                 = var.cognito_user_pool_name
+  region                               = var.region
+  access_token_validity                = 1
+  user_pool_id                         = aws_cognito_user_pool.product_scanner.id
+  callback_urls                        = var.call_back_urls
+  default_redirect_uri                 = var.call_back_urls[0]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code", "implicit"]
+  allowed_oauth_scopes                 = ["email", "openid"]
+  supported_identity_providers         = ["COGNITO"]
+}
+
+
+resource "aws_cognito_user_pool_domain" "product_scanner" {
+  domain                = var.cognito_user_pool_name
+  user_pool_id          = aws_cognito_user_pool.product_scanner.id
+  region                = var.region
+  managed_login_version = 2
+}
