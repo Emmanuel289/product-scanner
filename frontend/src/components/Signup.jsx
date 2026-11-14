@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { API_URL } from "../constants";
+import { signUp } from "aws-amplify/auth";
 
 const inputStyle = {
   width: "100%",
@@ -25,66 +25,20 @@ const labelStyle = {
   display: "block",
 };
 
-function SuccessBanner({ onDone }) {
-  const [fading, setFading] = useState(false);
-
-  useState(() => {
-    const fadeTimer = setTimeout(() => setFading(true), 1800);
-    const doneTimer = setTimeout(() => onDone(), 2400);
-    return () => { clearTimeout(fadeTimer); clearTimeout(doneTimer); };
-  }, []);
-
-  return (
-    <div style={{
-      position: "fixed", inset: 0,
-      background: "rgba(0,0,0,0.85)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 100,
-      opacity: fading ? 0 : 1,
-      transition: "opacity 0.6s ease",
-    }}>
-      <div style={{
-        background: "#0d0d0d",
-        border: "1px solid #1e1e1e",
-        borderRadius: 20,
-        padding: "40px 48px",
-        textAlign: "center",
-        animation: "slideUp 0.4s ease",
-      }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
-        <div style={{
-          color: "#fff",
-          fontFamily: "'DM Serif Display', serif",
-          fontSize: 24,
-          marginBottom: 8,
-        }}>
-          You're in
-        </div>
-        <div style={{
-          color: "#555",
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: 14,
-        }}>
-          Account created. Loading your scanner…
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function SignupPage({ onSuccess, onGoToLogin }) {
+export default function SignupPage({ onNeedsConfirmation, onSignupComplete, onGoToLogin }) {
   const [form, setForm] = useState({ username: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState(null);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
-  const validate = () => {
+  const validateFormInputs = () => {
     const e = {};
     if (!form.username.trim()) e.username = "Username is required";
     if (!form.email.trim()) e.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email";
+    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      e.email = "Enter a valid email";
+    }
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 8) e.password = "At least 8 characters";
     if (form.password !== form.confirm) e.confirm = "Passwords don't match";
@@ -93,28 +47,77 @@ export default function SignupPage({ onSuccess, onGoToLogin }) {
 
   const handleSubmit = async () => {
     setServerError(null);
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
+
+    const e = validateFormInputs();
+
+    if (Object.keys(e).length) {
+      setErrors(e);
+      return;
+    }
+
     setErrors({});
     setSubmitting(true);
+
+    const email = form.email.trim().toLowerCase();
+    const displayUsername = form.username.trim();
     try {
-      const res = await fetch(`${API_URL}/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: form.username,
-          email: form.email,
-          password: form.password,
-        }),
+      const { isSignUpComplete, nextStep } = await signUp({
+        username: email,
+        password: form.password,
+        options: {
+          userAttributes: {
+            email,
+            "custom:display_username": displayUsername,
+          }
+        }
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setServerError(data.detail || "Signup failed. Please try again.");
-        return;
+      console.log(`Signup complete is ${isSignUpComplete}`);
+      console.log("nextStep is", nextStep?.signUpStep);
+
+      switch (nextStep?.signUpStep) {
+        case "CONFIRM_SIGN_UP":
+          onNeedsConfirmation(email);
+          break;
+
+        case "DONE":
+          onSignupComplete();
+          break;
+
+        default:
+          setServerError(
+            `Additional signup step required: ${nextStep?.signUpStep || "Unknown"}`
+          );
       }
-      setShowSuccess(true);
-    } catch {
-      setServerError("Could not connect to the server.");
+    } catch (error) {
+      switch (error.name) {
+        case "UsernameExistsException":
+          setServerError("The username is already registered. Please sign in or choose another username.");
+          break;
+
+        case "AliasExistsException":
+          setServerError("This email is already registered with another account. Please sign in or choose another email.");
+          break;
+
+        case "InvalidPasswordException": {
+          setServerError("Your password does not meet the requirements. Must be 8 characters in length with at least one uppercase character, a number, and a special symbol.")
+          break;
+        }
+
+        case "InvalidParameterException":
+          setServerError("Your username does not meet the requirments. Must be minimum of 5 characters");
+          break;
+
+        case "TooManyRequestsException":
+        case "LimitExceededException":
+          setServerError("Too many attempts. Please try again later.");
+          break;
+
+        default: {
+          setServerError(
+            error.message || "Unable to create your account."
+          );
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -129,8 +132,6 @@ export default function SignupPage({ onSuccess, onGoToLogin }) {
 
   return (
     <>
-      {showSuccess && <SuccessBanner onDone={onSuccess} />}
-
       <style>{`
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(16px); }

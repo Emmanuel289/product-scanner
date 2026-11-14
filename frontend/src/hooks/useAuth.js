@@ -1,61 +1,70 @@
 import { useState } from "react";
-import { API_URL } from "../constants";
+import { signOut } from "aws-amplify/auth";
 
 export function useAuth() {
     const [currentUser, setCurrentUser] = useState(null);
+    const [pendingUsername, setPendingUsername] = useState(null);
     const [authPhase, setAuthPhase] = useState("login");
     const [authError, setAuthError] = useState(null);
 
+    // Successful login
     const handleAuthSuccess = (data) => {
-        // Set the current user data before updating auth phase to avoid
-        // a render where auth phase is "app" but the current user is null
+        setAuthError(null);
+        setPendingUsername(null);
         setCurrentUser(data);
         setAuthPhase("app");
     };
 
-    const handleLogoutSuccess = (onReset) => {
-        // Remove the current user before updating auth phase
-        // to prevent a render where the auth phase is "login"
-        // while there's a current user
+    // Signup requires email confirmation
+    const handleConfirmSignup = (username) => {
+        setAuthError(null);
         setCurrentUser(null);
+        setPendingUsername(username);
+        setAuthPhase("confirmsignup");
+    };
+
+    // Signup completed without requiring confirmation
+    const handleSignupComplete = () => {
+        setAuthError(null);
+        setPendingUsername(null);;
         setAuthPhase("login");
-        // Reset scanner state after auth phase is set to "login"
-        // so the scan history doesn't briefly flash before the
-        // login screen renders
-        onReset();
     }
 
+    // Confirmation completed
+    const handleConfirmationSuccess = () => {
+        setAuthError(null);
+        setPendingUsername(null);
+        setCurrentUser(null);
+        setAuthPhase("login");
+    }
+
+    // Centralized Logout
     const handleLogout = async (onReset) => {
-        if (!currentUser) {
-            setAuthPhase("login");
-            return;
-        }
-        const logoutUrl = `${API_URL}/logout`;
-        const payload = {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(currentUser),
-        };
+        setAuthError(null);
+
         try {
-            const res = await fetch(logoutUrl, payload);
-            const data = await res.json();
-            if (!res.ok) {
-                setAuthError(data.detail || "Sign out failed. Check your connection.");
-                return;
-            }
-            setAuthError(null);
-            handleLogoutSuccess(onReset);
+            await signOut();
         } catch (error) {
-            setAuthError(`Failed to sign out the user. ${error}`);
+            setAuthError("Sign out encountered an error.");
         }
+
+        setCurrentUser(null);
+        setPendingUsername(null);
+        setAuthPhase("login");
+        onReset?.();
     };
 
     return {
         currentUser,
+        pendingUsername,
         authPhase,
         setAuthPhase,
         authError,
+        setAuthError,
         handleAuthSuccess,
+        handleConfirmSignup,
+        handleSignupComplete,
+        handleConfirmationSuccess,
         handleLogout,
     };
 }
