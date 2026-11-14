@@ -1,0 +1,9 @@
+region                 = "us-east-1"
+profile                = "default"
+image_tag              = "latest"
+codebuild_log_group    = "codebuild-logs"
+github_repo_id         = "Emmanuel289/product-scanner"
+github_branch          = "main"
+cognito_user_pool_name = "product-scanner"
+custom_domain          = "product-scanner-seven.vercel.app"
+call_back_urls         = ["http://localhost:5173/", "https://product-scanner-seven.vercel.app/"]

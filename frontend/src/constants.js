@@ -10,8 +10,8 @@ export const SKIN_TYPES = [
 export const AMPLIFY_OUTPUTS = {
   Auth: {
     Cognito: {
-      userPoolClientId: "37085a43dgbsrfdvli0bnvq30",
-      userPoolId: "us-east-1_G5pMziVBT",
+      userPoolClientId: "51i8a4bvc3ff340sl6spb7pmoh",
+      userPoolId: "us-east-1_wfofZXzaq",
       signUpVerificationMethod: "code",
       userAttributes: {
         email: {

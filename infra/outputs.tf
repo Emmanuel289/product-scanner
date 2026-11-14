@@ -7,8 +7,8 @@ output "lambda_function_arn" {
   value       = aws_lambda_function.scanner.arn
 }
 
-output "api_url" {
-  value = "${aws_api_gateway_stage.prod.invoke_url}/scan"
+output "api_arn" {
+  value = aws_api_gateway_rest_api.scanner_api.arn
 }
 
 output "region" {
@@ -24,4 +24,8 @@ output "codebuild_arn" {
 }
 output "codepipeline_arn" {
   value = module.codebuild_codepipeline.codepipeline_arn
+}
+
+output "cognito_user_pool" {
+  value = aws_cognito_user_pool.product_scanner.name
 }
