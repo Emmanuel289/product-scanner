@@ -6,6 +6,10 @@ import ResultView from "./components/ResultView";
 import Signup from "./components/Signup";
 import Login from "./components/Login";
 import { ArrowLeftIcon, ArrowRightIcon } from "./components/icons/Icons";
+import { Amplify } from "aws-amplify";
+import { AMPLIFY_OUTPUTS } from "./constants";
+
+Amplify.configure(AMPLIFY_OUTPUTS);
 
 export default function App() {
   const {
